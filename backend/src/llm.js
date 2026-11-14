@@ -29,6 +29,20 @@ function config() {
 
 export const usage = { fast: { calls: 0, in: 0, out: 0 }, smart: { calls: 0, in: 0, out: 0 }, cacheHits: 0 };
 
+// A hard ceiling on fresh model tokens per UTC day, so a leaked URL or a loop cannot run up the bill.
+// Cached answers cost nothing and are not counted. LLM_DAILY_TOKENS=0 turns the cap off.
+const DAILY_CAP = Number(process.env.LLM_DAILY_TOKENS ?? 2_000_000);
+const today = { day: '', tokens: 0 };
+function spend(n) {
+  const d = new Date().toISOString().slice(0, 10);
+  if (today.day !== d) Object.assign(today, { day: d, tokens: 0 });
+  today.tokens += n;
+}
+function overBudget() {
+  const d = new Date().toISOString().slice(0, 10);
+  return DAILY_CAP > 0 && today.day === d && today.tokens >= DAILY_CAP;
+}
+
 export function llmInfo() {
   const c = config();
   if (c) return { enabled: true, provider: c.provider, fast: c.fast, smart: c.smart, usage };
@@ -83,10 +97,12 @@ export async function llmJson({ tier = 'fast', system, user, maxTokens = 2000 })
   let hit = true;
   const out = await cached(`llm:${sha(model + '\n' + system + '\n' + user)}`, Infinity, async () => {
     hit = false;
+    if (overBudget()) throw new Error('daily model budget reached; cached answers still work');
     const d = await call(c, model, system + '\nReply with one JSON object and nothing else.', user, maxTokens, process.env.LLM_SMART_EFFORT && tier === 'smart' ? process.env.LLM_SMART_EFFORT : 'low');
     usage[tier].calls++;
     usage[tier].in += d.usage?.prompt_tokens || 0;
     usage[tier].out += d.usage?.completion_tokens || 0;
+    spend((d.usage?.prompt_tokens || 0) + (d.usage?.completion_tokens || 0));
     const choice = d.choices?.[0];
     const content = choice?.message?.content || '';
     if (!content.trim()) throw new Error(`model gave no answer (stopped: ${choice?.finish_reason || 'unknown'})`);
