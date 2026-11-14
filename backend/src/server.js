@@ -23,7 +23,10 @@ const RESEARCH_PICKS = ['ETERNAL', 'TATASTEEL', 'HAL', 'PIDILITIND'];
 
 const app = express();
 app.disable('x-powered-by');
-app.set('trust proxy', Number(process.env.TRUST_PROXY || 0)); // set to 1 behind one reverse proxy so rate limits see the real client
+const ON_VERCEL = !!process.env.VERCEL;
+// Behind one reverse proxy, trust its X-Forwarded-For so rate limits see the real client.
+// Vercel's edge sets that header itself, so it is trusted there by default.
+app.set('trust proxy', Number(process.env.TRUST_PROXY ?? (ON_VERCEL ? 1 : 0)));
 
 // Baseline security headers. The client is self-hosted except Google Fonts.
 app.use((_req, res, next) => {
@@ -190,7 +193,9 @@ const dist = path.join(here, '../../frontend/dist');
 // tags stay relative and no sitemap is served: an absolute URL is never built from the Host header.
 const SITE_URL = (() => {
   try {
-    const u = new URL(process.env.SITE_URL || '');
+    // On Vercel, fall back to the project's production domain, which the platform sets.
+    const raw = process.env.SITE_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : '');
+    const u = new URL(raw);
     return u.protocol === 'https:' || u.protocol === 'http:' ? u.origin : '';
   } catch { return ''; }
 })();
@@ -229,11 +234,19 @@ if (fs.existsSync(dist)) {
 }
 
 await initStore();
-const port = Number(process.env.PORT) || 3001;
-app.listen(port, () => {
-  console.log(`FINN backend on http://localhost:${port}  (model: ${llmInfo().enabled ? llmInfo().provider : 'none, rules only'})`);
-  // Keep the filings history growing and the portfolio warm, so the first open is instant.
-  pollNse(true);
-  setInterval(() => pollNse(true), 5 * 60 * 1000).unref();
-  loadCompanies(PORTFOLIO).then(() => market(PORTFOLIO)).catch(() => {});
-});
+
+// On Vercel the app runs as a function: the platform calls the exported app per request, so
+// there is no listener and no timer. The digest polls the NSE feed itself on each request
+// (at most every four minutes), so the history still grows. Everywhere else it is a normal server.
+export default app;
+
+if (!ON_VERCEL) {
+  const port = Number(process.env.PORT) || 3001;
+  app.listen(port, () => {
+    console.log(`FINN backend on http://localhost:${port}  (model: ${llmInfo().enabled ? llmInfo().provider : 'none, rules only'})`);
+    // Keep the filings history growing and the portfolio warm, so the first open is instant.
+    pollNse(true);
+    setInterval(() => pollNse(true), 5 * 60 * 1000).unref();
+    loadCompanies(PORTFOLIO).then(() => market(PORTFOLIO)).catch(() => {});
+  });
+}

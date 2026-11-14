@@ -103,6 +103,13 @@ export async function facts(ticker) {
 }
 
 // ---------- analysis ----------
+// The job outlives the request that starts it. On Vercel a function may be frozen once its
+// response is sent, so the job is handed to waitUntil, which keeps the instance running until it
+// settles (up to the function's maxDuration). Elsewhere the process simply stays up.
+let waitUntil = null;
+if (process.env.VERCEL) ({ waitUntil } = await import('@vercel/functions'));
+const keepAlive = (promise) => { if (waitUntil) waitUntil(promise); };
+
 const jobs = new Map();
 const GROUND = 'Use only the material given in this message. Do not use anything you know about the company from elsewhere. If the material does not say, leave the field empty.';
 
@@ -183,9 +190,10 @@ export function analysis(ticker) {
   if (!job || (job.status === 'error' && Date.now() - job.at > 15000)) {
     job = { status: 'running', stage: 'Finding the documents', warnings: [], at: Date.now() };
     jobs.set(t, job);
-    runAnalysis(t, job)
+    const work = runAnalysis(t, job)
       .then((data) => Object.assign(job, { status: 'done', data }))
       .catch((e) => Object.assign(job, { status: 'error', error: e.message, at: Date.now() }));
+    keepAlive(work);
   }
   return job;
 }

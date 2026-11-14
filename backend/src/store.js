@@ -5,7 +5,9 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
-const DIR = process.env.DATA_DIR || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../data');
+// On Vercel only /tmp is writable, and it is not shared between instances: set MONGODB_URI there.
+const DIR = process.env.DATA_DIR
+  || (process.env.VERCEL ? '/tmp/finn-data' : path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../data'));
 const CACHE_DIR = path.join(DIR, 'cache');
 const FILINGS_FILE = path.join(DIR, 'filings.json');
 
@@ -43,6 +45,7 @@ export async function initStore() {
     } catch { /* first run */ }
   }
   console.log(`[store] ${storeMode}`);
+  if (process.env.VERCEL && !db) console.warn('[store] On Vercel without MongoDB: data lives in /tmp and is lost between instances. Set MONGODB_URI.');
 }
 
 // ---------- key/value cache ----------
