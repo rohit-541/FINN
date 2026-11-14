@@ -30,6 +30,7 @@ Copy `backend/.env.example` to `backend/.env`. FINN runs with none of them set.
 
 | Setting | What it turns on |
 |---|---|
+| `ACCESS_CODE` | **Set this on every public deployment.** The app opens to a lock screen, and every API call needs the code, which is entered once per device. Unset means open, which is fine on localhost. |
 | `GEMINI_API_KEY` or `GROQ_API_KEY` | The written analysis: promise vs delivered, bull vs bear, management bios from the filing, "Read it for me", Ask. Any OpenAI-compatible endpoint also works through `LLM_BASE_URL`. |
 | `GLM_API_KEY` + `GLM_BASE_URL` (+ `GLM_MODEL`, default `hyde/glm-5.3-flash`) | The same, through an OpenAI-compatible inference gateway. One model serves both tiers. |
 | `MONGODB_URI` | MongoDB for the cache and the filings history. Without it the same data goes to JSON files in `backend/data/`. |
@@ -79,12 +80,13 @@ Audited against a 25-point web app security checklist on 15 Nov 2026. FINN has n
 | 3 | Env set in every environment | Pass | Nothing is required: without a key FINN runs on rules, and `/api/meta` reports a half-set key (`GLM_API_KEY` without `GLM_BASE_URL`) instead of failing silently. |
 | 4 | `.env` ignored | Pass | `.env` and `.env.*` are ignored, `.env.example` is the only tracked env file. |
 | 5–10 | Password hashing, sessions, JWT, reset tokens, email verification, OAuth state | N/A | No accounts or login. The portfolio and rules live in the browser's local storage. |
-| 11 | Every API route checks the caller | N/A, by design | All routes are public and return public market data only (exchange filings, prices, reported financials). Nothing per-user is stored on the server. |
+| 11 | Every API route checks the caller | Pass (shared code) | With `ACCESS_CODE` set, every `/api` route except the access check and unlock returns 401 without the code in `X-Finn-Code`. Codes are compared in constant time on SHA-256 digests. There are no user accounts yet, so this is one shared code rather than per-user sessions. |
 | 12–14 | Own data only (IDOR), admin routes, tenant boundaries | N/A | No user records, no admin routes, single tenant. |
 | 15 | Parameterized queries | Pass | No SQL. MongoDB queries use typed values, and every ticker is checked against `^[A-Z0-9&-]{1,20}$` before it reaches a query or an upstream URL. |
 | 16 | File uploads restricted | N/A | No uploads. JSON bodies are capped at 50 kB. |
 | 17 | User input sanitized before HTML | Pass | No `dangerouslySetInnerHTML`, `innerHTML` or `eval` anywhere; React escapes all text, model output included. Links from scraped pages pass `safeUrl` (http/https only). |
-| 18–19 | Login and reset rate limits | N/A | No login. All of `/api` is limited to 300 requests per minute per IP. |
+| 18 | Login rate limit | Pass | Wrong access codes are counted per IP. After 10 in 15 minutes that IP gets 429 with `Retry-After`, even for the right code, so the code cannot be guessed by brute force. Only failures count, so normal use is never blocked. |
+| 19 | Reset rate limit | N/A | No password reset. Change `ACCESS_CODE` and restart to revoke every device. All of `/api` is also limited to 300 requests per minute per IP. |
 | 20 | AI endpoints have spend limits | Pass | Three layers: Ask and "Read it for me" 30 per IP per 10 min; new company analyses 12 per IP per hour (polling a running job is free); a server-wide cap of 2M fresh tokens per day. Cached answers never count. |
 | 21–23 | Webhook signatures, idempotent orders, server-side subscription checks | N/A | No payments. |
 | 24 | Row-Level Security | N/A | No Supabase. MongoDB, when used, is reached only by the backend with credentials from the environment. |
@@ -98,12 +100,13 @@ Hardening beyond the list:
 - **Input bounds.** Questions are capped at 300 characters, search at 40, and a digest window at about 3 months.
 - **Dependencies.** `npm audit --omit=dev` reports 0 vulnerabilities in both packages. unpdf was moved to 2.x, which drops the `canvas` and `tar` chain that carried a critical advisory.
 
-Verified against the running server: unsafe tickers (`../../etc`, `<script>`) return 400, an enrich URL pointing at `169.254.169.254` returns 400, a request from another origin gets no CORS header, and the 31st Ask request within 10 minutes returns 429 with `Retry-After`.
+Verified against the running server: without the code, `/api/meta` and Ask return 401 while the page itself still loads; a wrong code returns 401 and the right one 200; after 10 wrong codes, even the right one returns 429; unsafe tickers (`../../etc`, `<script>`) return 400, an enrich URL pointing at `169.254.169.254` returns 400, a request from another origin gets no CORS header, and the 31st Ask request within 10 minutes returns 429 with `Retry-After`.
 
 Open items:
 
 - Rate limits live in memory, which suits one instance. Running several needs a shared store such as Redis.
-- Anyone who has the URL can use the deployment. That is fine for a demo; put it behind the host's access control or add sign-in before sharing it widely.
+- The access code is shared, not per user. Anyone you give it to has full access until you change `ACCESS_CODE` and restart, which signs out every device. Sign-in with per-user sessions is planned; it replaces `codeOk` in `server.js`, and the lock screen becomes the login page.
+- The code is stored in the browser's local storage on each device. Rules → **Lock FINN on this device** removes it.
 
 ## Known limits
 
