@@ -25,8 +25,9 @@ It is built to be cheap to run. Rules do the sorting, models are called only whe
 8. [API reference](#api-reference)
 9. [Module reference](#module-reference)
 10. [Security](#security)
-11. [Known limitations](#known-limitations)
-12. [Contributing](#contributing)
+11. [SEO](#seo)
+12. [Known limitations](#known-limitations)
+13. [Contributing](#contributing)
 
 ---
 
@@ -143,6 +144,7 @@ FINN talks to any OpenAI-compatible `/chat/completions` endpoint. The first conf
 | `ANALYSIS_PER_HOUR` | `12` | New company analyses per client IP per hour. |
 | `CORS_ORIGIN` | unset | Comma-separated origins allowed to call the API, needed only when the client is hosted elsewhere. |
 | `TRUST_PROXY` | `0` | Set to `1` behind one reverse proxy, so rate limits see the real client IP. |
+| `SITE_URL` | unset | Public origin, such as `https://finn.example.com`. Fills the canonical URL, share tags and structured data, and publishes `sitemap.xml`. |
 | `PORT` | `3001` | HTTP port. |
 
 ---
@@ -156,7 +158,7 @@ FINN is one Node process that serves both the API and the built client, so it de
 | Build command | `cd frontend && npm install && npm run build && cd ../backend && npm install` |
 | Start command | `node backend/src/server.js` |
 | Required env | `ACCESS_CODE`, plus the model key for your provider |
-| Recommended env | `TRUST_PROXY=1`, and `DATA_DIR` on a persistent disk or `MONGODB_URI` |
+| Recommended env | `SITE_URL`, `TRUST_PROXY=1`, and `DATA_DIR` on a persistent disk or `MONGODB_URI` |
 
 Serve it over HTTPS. Browsers allow installing the app and showing notifications only on secure origins.
 
@@ -301,6 +303,8 @@ All routes are under `/api` and return JSON.
 | `GET` | `/api/research/:ticker` | Company facts computed from reported numbers | Code |
 | `GET` | `/api/research/:ticker/analysis` | Start or poll the analysis job | Code |
 | `POST` | `/api/research/:ticker/ask` | Answer a question from the company's documents | Code |
+
+Two crawler files are served outside `/api`, with no access code: `GET /robots.txt` and `GET /sitemap.xml` (see [SEO](#seo)).
 
 ### Endpoint details
 
@@ -538,6 +542,44 @@ Each control was tested against the running server.
 - **Shared code, not per-user sign-in.** Anyone holding the code has full access until `ACCESS_CODE` is rotated. Per-user sessions are planned: they replace `codeOk` in [`server.js`](backend/src/server.js), and the lock screen becomes the login page.
 - **In-memory rate limits.** These suit a single instance. Scaling out needs a shared store such as Redis.
 - **Code stored in local storage.** It stays on each device until Rules → **Lock FINN on this device** removes it.
+
+---
+
+## SEO
+
+FINN is a private, single-page application. Its screens are hash routes (`#/brief`, `#/research/TCS`), which search engines ignore, and their data sits behind the access code. The home page is therefore the one indexable URL, and the SEO setup aims to describe it well and keep crawlers away from the API.
+
+### What is served
+
+| Item | Implementation |
+|---|---|
+| `robots.txt` | Allows `/`, disallows `/api/`, and links the sitemap when `SITE_URL` is set. Cached for a day. |
+| `sitemap.xml` | One `<url>` for the home page, with `lastmod` taken from the build date. Served only when `SITE_URL` is set; otherwise 404. |
+| Canonical URL | `<link rel="canonical">` pointing at `SITE_URL/`. |
+| Social sharing | Open Graph tags (type, site name, title, description, URL, image, locale) and a Twitter summary card. |
+| Structured data | JSON-LD `WebApplication` (finance category, free, any OS). |
+| Basics | `lang="en"`, viewport, meta description, theme colour, web manifest, and icons at 192 and 512 px. |
+
+### Audit
+
+| # | Check | Status | Notes |
+|---|---|---|---|
+| 1 | Title present | Pass | `FINN`, kept short by choice. Share tags carry the descriptive title. |
+| 2 | Meta description | Pass | One sentence on what FINN does. |
+| 3 | Language and viewport | Pass | `lang="en"`, responsive viewport. |
+| 4 | Canonical URL | Pass | Absolute when `SITE_URL` is set, relative otherwise. |
+| 5 | robots.txt | Pass | Keeps crawlers out of `/api/`. |
+| 6 | sitemap.xml | Pass | Valid XML (checked with `xmllint`), linked from robots.txt. |
+| 7 | Open Graph and Twitter tags | Pass | Title, description, URL and image. |
+| 8 | Structured data | Pass | JSON-LD parses as valid JSON. Rendering is not blocked by the Content-Security-Policy. |
+| 9 | Mobile friendly | Pass | Mobile-first layout, dvh units, installable PWA. |
+| 10 | HTTPS | Deployment | Required on the host; also needed for install and notifications. |
+| 11 | Indexable content | By design | Data screens are hash routes behind the access code, so they are not indexed. |
+
+### Safety
+
+- **No Host-header echo.** Absolute URLs are built only from `SITE_URL`, and only its origin is used, so a path, query or forged `Host` header can never reach the page or the XML. Verified: a `Host` header carrying `<script>` appears in neither.
+- **Service worker.** Never caches `sitemap.xml` or `robots.txt`, and only an HTML response can become the cached app shell. Before this fix, opening the sitemap in a tab could have replaced the offline app with the XML.
 
 ---
 
