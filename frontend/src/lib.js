@@ -102,3 +102,6 @@ export function moveOf(q, rules) {
     weight: Math.abs(q.changePct) / rules.price + (q.volumeRatio || 0) / rules.volume,
   };
 }
+
+// Links that come from scraped pages are only rendered when they are plain http(s), never javascript: or data:.
+export const safeUrl = (u) => { try { const x = new URL(u); return x.protocol === 'https:' || x.protocol === 'http:' ? x.href : undefined; } catch { return undefined; } };

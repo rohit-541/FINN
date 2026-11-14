@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { api, useAsync, cr, num, pct, dir, price, fy } from './lib.js';
+import { api, useAsync, cr, num, pct, dir, price, fy, safeUrl } from './lib.js';
 import { Chart, S1, S2 } from './Charts.jsx';
 
 const QUESTIONS = ['What did management guide for margins?', 'What is the capex plan?', 'What did analysts press on in the last call?'];
@@ -288,8 +288,8 @@ function Company({ ticker, go }) {
       <section {...sec('sources')}>
         <h2>Sources <span className="h-note">company filings only</span></h2>
         <div className="rows">
-          {f.docs.concalls.filter((c) => c.transcript).map((c) => <a key={c.transcript} className="row src" href={c.transcript} target="_blank" rel="noreferrer"><span className="row-text">Earnings call transcript</span><span className="mono">{c.period}</span></a>)}
-          {f.docs.annualReports.map((a) => <a key={a.url} className="row src" href={a.url} target="_blank" rel="noreferrer"><span className="row-text">{a.title}</span><span className="mono">PDF</span></a>)}
+          {f.docs.concalls.filter((c) => c.transcript).map((c) => <a key={c.transcript} className="row src" href={safeUrl(c.transcript)} target="_blank" rel="noreferrer"><span className="row-text">Earnings call transcript</span><span className="mono">{c.period}</span></a>)}
+          {f.docs.annualReports.map((a) => <a key={a.url} className="row src" href={safeUrl(a.url)} target="_blank" rel="noreferrer"><span className="row-text">{a.title}</span><span className="mono">PDF</span></a>)}
           <a className="row src" href={`https://www.screener.in/company/${f.ticker}/`} target="_blank" rel="noreferrer"><span className="row-text">Reported financials, standardised</span><span className="mono">Screener</span></a>
         </div>
         <button className="btn ghost wide" onClick={() => go('research')}>Research another company</button>

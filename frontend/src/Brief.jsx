@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { api, useAsync, useLocal, ago, num, pct, dir, price, tierOf, moveOf } from './lib.js';
+import { api, useAsync, useLocal, ago, num, pct, dir, price, tierOf, moveOf, safeUrl } from './lib.js';
 import { Spark } from './Charts.jsx';
 
 const DAY = 864e5;
@@ -101,14 +101,14 @@ function Filing({ item, material, embedded, onClear, go }) {
       {extra?.needsKey && <p className="fine">Reading a filing needs a model key on the backend. Rules, numbers and prices work without one.</p>}
       {extra?.briefError && <p className="fine">FINN could not read this filing: {extra.briefError}</p>}
       <div className="actions">
-        <a className="btn ghost" href={item.url} target="_blank" rel="noreferrer">Open filing</a>
+        <a className="btn ghost" href={safeUrl(item.url)} target="_blank" rel="noreferrer">Open filing</a>
         {!extra?.brief && <button className="btn ghost" onClick={read} disabled={reading}>{reading ? 'Reading…' : 'Read it for me'}</button>}
         <button className="btn ghost end" onClick={() => onClear(item.id)}>Clear</button>
       </div>
       {item.related.length > 0 && (
         <details className="related">
           <summary>{item.related.length} more filing{item.related.length > 1 ? 's' : ''} on the same event</summary>
-          {item.related.map((r) => <a key={r.id} href={r.url} target="_blank" rel="noreferrer">{r.src} · {r.title}</a>)}
+          {item.related.map((r) => <a key={r.id} href={safeUrl(r.url)} target="_blank" rel="noreferrer">{r.src} · {r.title}</a>)}
         </details>
       )}
     </>
@@ -320,7 +320,7 @@ export default function Brief({ portfolio, rules, go }) {
               <summary>{routine.length} routine filing{routine.length > 1 ? 's' : ''} hidden<span>Show</span></summary>
               <div className="rows">
                 {routine.map((it) => (
-                  <a key={it.id} className="row mini-row" href={it.url} target="_blank" rel="noreferrer">
+                  <a key={it.id} className="row mini-row" href={safeUrl(it.url)} target="_blank" rel="noreferrer">
                     <span className="ticker">{it.ticker}</span><span className="row-text">{it.headline}</span>
                   </a>
                 ))}
