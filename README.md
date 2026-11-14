@@ -81,7 +81,8 @@ Audited against a 25-point web app security checklist on 15 Nov 2026. FINN has n
 | 4 | `.env` ignored | Pass | `.env` and `.env.*` are ignored, `.env.example` is the only tracked env file. |
 | 5–10 | Password hashing, sessions, JWT, reset tokens, email verification, OAuth state | N/A | No accounts or login. The portfolio and rules live in the browser's local storage. |
 | 11 | Every API route checks the caller | Pass (shared code) | With `ACCESS_CODE` set, every `/api` route except the access check and unlock returns 401 without the code in `X-Finn-Code`. Codes are compared in constant time on SHA-256 digests. There are no user accounts yet, so this is one shared code rather than per-user sessions. |
-| 12–14 | Own data only (IDOR), admin routes, tenant boundaries | N/A | No user records, no admin routes, single tenant. |
+| 12 | Own data only (IDOR) | Pass | There are no per-user records on the server: a portfolio and its rules live in the browser. Every id-taking route serves public data (`/api/research/:ticker`, analysis, Ask, digest by ticker). Shared caches are keyed by the document URL or a hash of the full prompt, so one caller cannot plant an answer another receives. `/api/enrich` takes only a filing id and a ticker. It loads the filing from the server's own store and checks that it belongs to that company. An unknown id and another company's filing both return the same 404, so ids cannot be probed. Before this fix it trusted a filing object sent by the client. |
+| 13–14 | Admin routes, tenant boundaries | N/A | No admin routes, single tenant. |
 | 15 | Parameterized queries | Pass | No SQL. MongoDB queries use typed values, and every ticker is checked against `^[A-Z0-9&-]{1,20}$` before it reaches a query or an upstream URL. |
 | 16 | File uploads restricted | N/A | No uploads. JSON bodies are capped at 50 kB. |
 | 17 | User input sanitized before HTML | Pass | No `dangerouslySetInnerHTML`, `innerHTML` or `eval` anywhere; React escapes all text, model output included. Links from scraped pages pass `safeUrl` (http/https only). |
@@ -100,7 +101,7 @@ Hardening beyond the list:
 - **Input bounds.** Questions are capped at 300 characters, search at 40, and a digest window at about 3 months.
 - **Dependencies.** `npm audit --omit=dev` reports 0 vulnerabilities in both packages. unpdf was moved to 2.x, which drops the `canvas` and `tar` chain that carried a critical advisory.
 
-Verified against the running server: without the code, `/api/meta` and Ask return 401 while the page itself still loads; a wrong code returns 401 and the right one 200; after 10 wrong codes, even the right one returns 429; unsafe tickers (`../../etc`, `<script>`) return 400, an enrich URL pointing at `169.254.169.254` returns 400, a request from another origin gets no CORS header, and the 31st Ask request within 10 minutes returns 429 with `Retry-After`.
+Verified against the running server: `/api/enrich` returns 200 for a filing's own company, 404 for the same id under another company and for a made-up id, and 400 for an object in place of the id (operator injection) and for the old client-built filing object; without the code, `/api/meta` and Ask return 401 while the page itself still loads; a wrong code returns 401 and the right one 200; after 10 wrong codes, even the right one returns 429; unsafe tickers (`../../etc`, `<script>`) return 400, an enrich URL pointing at `169.254.169.254` returns 400, a request from another origin gets no CORS header, and the 31st Ask request within 10 minutes returns 429 with `Retry-After`.
 
 Open items:
 
