@@ -564,7 +564,7 @@ FINN is a private, single-page application. Its screens are hash routes (`#/brie
 
 | # | Check | Status | Notes |
 |---|---|---|---|
-| 1 | Title present | Pass | `FINN`, kept short by choice. Share tags carry the descriptive title. |
+| 1 | Title present | Pass | `FINN: Portfolio Filings & Stock Research` in the browser tab and share tags. The installed app keeps the short name `FINN`. |
 | 2 | Meta description | Pass | One sentence on what FINN does. |
 | 3 | Language and viewport | Pass | `lang="en"`, responsive viewport. |
 | 4 | Canonical URL | Pass | Absolute when `SITE_URL` is set, relative otherwise. |
