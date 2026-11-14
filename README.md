@@ -162,6 +162,28 @@ FINN is one Node process that serves both the API and the built client, so it de
 
 Serve it over HTTPS. Browsers allow installing the app and showing notifications only on secure origins.
 
+### Vercel
+
+[`vercel.json`](vercel.json) deploys FINN as one Vercel project with two services and one domain.
+
+| Service | Root | Runs as | Public paths |
+|---|---|---|---|
+| `backend` | `backend/` | Express function, entrypoint `src/server.js` | `/api/*`, `/robots.txt`, `/sitemap.xml` |
+| `frontend` | `frontend/` | Vite static build (`dist`), with the security headers | everything else |
+
+The browser calls the backend through the public `/api` path on the same domain. The services never call each other server-side, so no bindings are needed.
+
+On Vercel the backend runs differently in four ways:
+
+- **No listener or timer.** It exports the app instead of listening on a port. The NSE feed is polled by the digest on each request, at most every four minutes, instead of by a five-minute timer.
+- **Storage.** Only `/tmp` is writable, and it is not shared between instances. **Set `MONGODB_URI`** so the cache and filings history persist.
+- **Analysis jobs.** Kept running after the response with `waitUntil`, within the function's maximum duration (300 s by default).
+- **Proxy.** The client IP is read from Vercel's `X-Forwarded-For` for rate limiting.
+
+`SITE_URL` falls back to the project's production domain, and the frontend build fills in the canonical and share tags.
+
+Set these in the Vercel project's environment variables: `ACCESS_CODE`, `GLM_API_KEY`, `GLM_BASE_URL`, `GLM_MODEL`, `MONGODB_URI`, and optionally `SITE_URL`. Test locally with `vercel dev`.
+
 ---
 
 ## Installing as an app
