@@ -1,0 +1,478 @@
+{
+  "title": "FINN: agentic build log",
+  "purpose": "How FINN, a secure mobile-first investment agent for Indian equities, was built with an AI coding agent: the prompts, the agent's replies, what it changed, and how each step was checked. Use it to teach how to direct an agent to build a safe, secure app from your own requirements.",
+  "how_to_read": [
+    "Phases run in order: requirements, first build, iteration, features, security audit, deployment.",
+    "User prompts are written the way a skilled prompter would phrase them. Agent replies summarise what the agent said, did and verified.",
+    "The work, the findings and the verification results are the real ones from this build.",
+    "Deployment entries marked 'pending' are steps to run on the chosen host; their results are filled in when run."
+  ],
+  "project": {
+    "name": "FINN",
+    "repository": "https://github.com/rohit-541/FINN",
+    "stack": [
+      "React 18",
+      "Vite 6",
+      "Express 4",
+      "MongoDB (optional, JSON-file fallback)",
+      "OpenAI-compatible model gateway",
+      "PWA (manifest + service worker)"
+    ],
+    "built": "2026-11-14 to 2026-11-15"
+  },
+  "prompting_principles": [
+    "Open with the whole picture: stack, users, features, constraints and how you want the agent to work.",
+    "State non-negotiables explicitly: no secrets in the client, honest scraping, rules before models.",
+    "Ask for verification after every step, including what could not be checked.",
+    "Give one focused change per prompt, with a reference (a screenshot, a mockup, a checklist) where you have one.",
+    "Name the outcome, not the implementation, and let the agent propose how.",
+    "Ask for security as its own pass against a named checklist, then ask for proof, not claims.",
+    "Keep secrets out of the conversation: put keys in .env yourself and tell the agent they are there."
+  ],
+  "phases": [
+    {
+      "phase": 1,
+      "name": "Requirements and first build",
+      "turns": [
+        {
+          "role": "user",
+          "prompt": "You are building FINN, a mobile-first investment agent for Indian equities (NSE and BSE). Work in this empty folder and build it end to end.\n\nTECH STACK\n- Frontend: React 18 + Vite, plain CSS, no UI library. Mobile first, works on a phone browser.\n- Backend: Node.js + Express (ES modules). One process serves the API and the built client, so there is one thing to deploy.\n- Database: MongoDB when MONGODB_URI is set; otherwise fall back to JSON files on disk, behind one storage interface. The app must run with no database and no API keys.\n- Models: any OpenAI-compatible chat endpoint, keys only in backend/.env, never in the client.\n\nUSERS\nA portfolio manager who holds 15 to 20 stocks and has no time to read every exchange filing.\n\nPUSH (the Brief, the home screen)\n1. Windowed digest of filings across the portfolio, default last 24 hours, selectable (3, 7, 30 days or two dates).\n2. Prioritise: classify every filing by category and tier (material, worth a glance, routine). Collapse the same event filed on both exchanges into one item.\n3. Results first cut: Revenue, EBITDA, PBT and PAT against the previous quarter and the same quarter last year.\n4. Management changes: who, which post, effective date, and a short bio from the filing.\n5. Triggered alerts: end-of-day price and volume thresholds the user sets, and material announcements.\n\nPULL (Research)\nFor any NSE ticker, from primary sources only (annual reports, concall transcripts, reported financials):\nsnapshot, multi-year trajectory, balance sheet, cash-flow quality, narrative vs numbers, current guidance, bull vs bear, and promise vs delivered over the last four quarters, each promise with its verbatim quote and source call. Add a question box that answers with page-cited quotes.\n\nEFFICIENCY (a hard requirement)\n- Rules before models: classification, priority, charts and computed verdicts must not call a model.\n- Two model tiers: a cheap fast model reads documents, a stronger model judges once.\n- Cache every filed document forever (it never changes) and every model answer on a hash of its prompt.\n- Send models only the relevant passages, not whole PDFs.\n\nDATA SOURCES\nUse public sources only and identify the client honestly. Do not spoof browser headers or bypass protections. Prefer the NSE announcements RSS feed, Screener.in company pages and a public price API with a fallback.\n\nDESIGN\nClean, calm, readable on a phone. Numbers in a monospace face. Hand-drawn SVG charts. Every screen must answer \"what needs my attention?\" first.\n\nDELIVERABLES\n- Working app with run instructions in README.md.\n- .env.example listing every setting; .gitignore that excludes .env and local data.\n- A short note on design decisions and known limits.\n\nHOW TO WORK\nPlan first and tell me the plan in a few lines. Build in vertical slices. After each slice, verify against live data and tell me what you checked and what you could not check. Ask me only when a decision is genuinely mine.",
+          "why_this_prompt_works": "One complete brief: stack, users, every feature with acceptance detail, efficiency and data-source rules, deliverables, and a working method that demands verification."
+        },
+        {
+          "role": "agent",
+          "reply": "Plan: an Express backend with a storage layer (MongoDB or JSON files), source adapters (Screener, a price API, the NSE RSS feed), a rule-based classifier, a push module (digest, grouping, results card, bios) and a research module (computed facts, a background analysis job, Ask). Then a React client with three screens: Brief, Research, Rules.\n\nBuilt in slices, each checked against live data. The NSE and BSE JSON APIs refuse automated clients, so filings come from the public NSE RSS feed, polled every five minutes and stored to build history, plus each company's BSE announcements via Screener. Without a model key everything rule-based works; the written analysis switches on when a key is added.",
+          "actions": [
+            "Scaffolded backend (Express, ESM) and frontend (Vite + React).",
+            "store.js: one interface over MongoDB or JSON files; read-through cache with in-flight de-duplication and stale-on-error.",
+            "sources/: Screener parser (tables, announcements, annual reports, concalls), price quotes with fallback, NSE RSS poller.",
+            "classify.js: ordered regex rules giving 17 categories and three tiers, no model.",
+            "push.js: digest grouped by ticker, category and IST day; results first cut (QoQ/YoY); people extraction with regex fallback.",
+            "research.js: TTM, CAGRs, balance sheet, cash conversion, signals; background job reading 4 transcripts and 1 annual report with the fast tier, then one smart-tier verdict; Ask with cited quotes.",
+            "docs.js: PDF text extraction cached forever; keyword-scored passage selection instead of embeddings.",
+            "llm.js: fast and smart tiers over any OpenAI-compatible endpoint, prompt-hash cache, token ledger.",
+            "Client: Brief, Research and Rules screens; hand-drawn SVG sparkline and series charts with a scrub readout."
+          ],
+          "verification": [
+            "18 holdings priced from the live price API.",
+            "A 7-day digest classified and grouped; NSE feed items matched to holdings.",
+            "Results first cut checked against MARUTI's reported quarter.",
+            "Research facts computed for DIXON, HDFCBANK (bank metrics) and ETERNAL.",
+            "A 187-page annual report extracted in about 2 seconds.",
+            "Full model pipeline exercised against a local stand-in server before any paid key was used."
+          ]
+        }
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "Iteration: design, model and quality improvements",
+      "turns": [
+        {
+          "role": "user",
+          "prompt": "Restyle the app to a light theme: white cards on a soft lavender wash, large radii, a compact floating dock. Make it installable as an app with a web manifest and a service worker. Also tell me plainly: is a model API key mandatory?",
+          "why_this_prompt_works": "A visual reference plus one structural requirement plus a direct question gets a direct answer."
+        },
+        {
+          "role": "agent",
+          "reply": "Restyled to the light lavender system and made FINN a PWA. A model key is optional: rules, numbers, prices and charts work without one; the key only turns on written analysis.",
+          "actions": [
+            "Design tokens on :root; frosted trays, white cards, dark pill dock.",
+            "manifest.webmanifest with icons (192, 512, maskable, apple-touch).",
+            "sw.js: network-first for the page and API, cache-first for fingerprinted assets, never caches a running analysis job.",
+            "Install button driven by beforeinstallprompt; service worker registered only in production builds."
+          ],
+          "verification": [
+            "Production build served by the backend; manifest and service worker load; install prompt available on localhost."
+          ]
+        },
+        {
+          "role": "user",
+          "prompt": "Use dynamic viewport units (dvh) so the layout fits mobile browsers with collapsing toolbars. On the home screen keep only what needs attention today."
+        },
+        {
+          "role": "agent",
+          "reply": "Switched full-height layouts to dvh and cut the home screen down to the top material item, threshold moves and a short list.",
+          "actions": [
+            "min-height in dvh for shell and screens.",
+            "Removed secondary sections from the Brief; moved them behind taps."
+          ],
+          "verification": [
+            "Screenshots at 390x844: no toolbar overlap, first screen shows the priority item."
+          ]
+        },
+        {
+          "role": "user",
+          "prompt": "I put a GLM gateway key in backend/.env as GLM_API_KEY. The analysis still says no model. Find out why and fix it. Do not print the key."
+        },
+        {
+          "role": "agent",
+          "reply": "Two causes. First, the gateway needs its base URL, which was missing; the settings panel now names the exact missing variable instead of failing silently. Second, the model is a reasoning model: it spent its whole token allowance thinking and returned an empty answer. Fixed by requesting low reasoning effort and reserving extra tokens for thinking.",
+          "findings": [
+            "GLM_BASE_URL unset, so the provider was skipped.",
+            "Empty content with finish_reason 'length' from the reasoning model.",
+            "Occasional trailing text after the JSON answer."
+          ],
+          "actions": [
+            "llm.js: GLM preset requiring key and base URL; problem message surfaced in /api/meta.",
+            "reasoning_effort 'low' plus a think budget added to max_tokens; 180 s timeout; retry on 429 and 5xx.",
+            "Balanced-bracket JSON parser that takes the first complete object."
+          ],
+          "verification": [
+            "Live Ask on DIXON answered in under 3 seconds with page-cited quotes.",
+            "Full DIXON analysis: credibility 'mixed', 6 promises, 3 bull and 3 bear points; about 31k fast-tier tokens on first read, 12 seconds when cached."
+          ]
+        },
+        {
+          "role": "user",
+          "prompt": "The home screen still feels busy. Use this reference: one hero card, two tiles, a short list. Highlight only the most important information and let everything else be one tap away."
+        },
+        {
+          "role": "agent",
+          "reply": "Rebuilt the Brief around a hero card for the top material filing (or 'All clear'), two tiles for Moves and Glance, a short list of other material items, and a collapsed routine line.",
+          "actions": [
+            "Hero card with ticker avatars and an inline Read view.",
+            "Moves and Glance tiles that open panels.",
+            "'All clear' state with a 'Widen to 7 days' action instead of a dead end."
+          ],
+          "verification": [
+            "Screenshots of the busy and all-clear states at phone width."
+          ]
+        },
+        {
+          "role": "user",
+          "prompt": "Use a bold display font for titles that matches this style. It must be free to use on the web."
+        },
+        {
+          "role": "agent",
+          "reply": "Set titles in Titan One from Google Fonts, uppercase, kept to headings; body text stays in Geist for readability.",
+          "actions": [
+            "index.html font link; --display token; one title style shared by every screen."
+          ],
+          "verification": [
+            "Brief screenshot: titles render in the display face, no overflow at 390 px."
+          ]
+        },
+        {
+          "role": "user",
+          "prompt": "On a company page the guidance table is cramped on a phone. Make it readable without horizontal scrolling."
+        },
+        {
+          "role": "agent",
+          "reply": "Replaced the table with a stacked list: metric, target, horizon and source call on separate lines.",
+          "actions": [
+            "ul.guide component and styles."
+          ],
+          "verification": [
+            "DIXON research page at 390 px: no horizontal scroll."
+          ]
+        },
+        {
+          "role": "user",
+          "prompt": "Some filings are in the wrong category: employee stock option warrants show as fund raises, newspaper adverts as results, and some management changes have no name. Banks show EBITDA, which means nothing for a lender. Fix these at the rule level."
+        },
+        {
+          "role": "agent",
+          "reply": "Reordered and extended the classifier, added a fallback for headline-only appointments, and switched lenders to Financing profit and ROE.",
+          "actions": [
+            "Rule order: paperwork after results; ESOP warrants treated as paperwork; adverts as results adverts.",
+            "Regex fallback for 'X reappointed NAME as ROLE'.",
+            "Financing profit in place of EBITDA for lenders; ROE signal instead of margin; rounding fixed for D/E."
+          ],
+          "verification": [
+            "Re-ran the 7-day digest: the misfiled items moved; HDFCBANK shows Financing profit and ROE."
+          ]
+        },
+        {
+          "role": "user",
+          "prompt": "The browser console shows: TypeError: Failed to execute 'clone' on 'Response': Response body is already used, at sw.js line 19. Explain it and fix it."
+        },
+        {
+          "role": "agent",
+          "reply": "The service worker cloned each response only after the cache opened, by which time the page had already read the body. It now clones first, then caches. Cache version bumped so the old worker is replaced.",
+          "actions": [
+            "sw.js: clone synchronously before caches.open; catch cache write errors; VERSION finn-v2."
+          ],
+          "verification": [
+            "Rebuilt; no clone error on reload."
+          ]
+        },
+        {
+          "role": "user",
+          "prompt": "Balance the screens. The Rules page scrolls far too long and the home page is too sparse. Keep the design system."
+        },
+        {
+          "role": "agent",
+          "reply": "Added a Holdings card to the Brief (average move, up/down breadth, three biggest movers, expandable to all) and folded Rules into three compact sections with collapsible rows.",
+          "actions": [
+            "Brief: Pulse card with breadth bar and sparklines.",
+            "Rules: install banner, alerts card with a notification switch, portfolio card, folded 'Filing types' and 'Under the hood'.",
+            "Found and fixed a CSS class collision that collapsed the new card to 10 px."
+          ],
+          "verification": [
+            "Brief now about 1.25 screens at 390x844, Rules about 1.5 (from many)."
+          ]
+        },
+        {
+          "role": "user",
+          "prompt": "Keep only the model provider I use and remove dead configuration. Then put the project under git with a clean, professional commit history and push it to my GitHub remote."
+        },
+        {
+          "role": "agent",
+          "reply": "Removed the unused provider preset from code, env template and docs. Initialised git on top of the remote's initial commit and wrote the history as logical Conventional Commits, backend first, then frontend, PWA and docs.",
+          "actions": [
+            "Merged the remote .gitignore with project entries (local data, tooling, OS files).",
+            "17 commits such as 'feat(backend): classify filings into material, glance and routine tiers'.",
+            "Pushed to main."
+          ],
+          "verification": [
+            "Secret scan over every commit: the live key appears in none; .env and data files untracked."
+          ]
+        }
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "Feature additions",
+      "turns": [
+        {
+          "role": "user",
+          "prompt": "Add a date filter to the Brief: quick windows for 24 hours, 3, 7 and 30 days, plus any custom date range. Remember the choice on this device."
+        },
+        {
+          "role": "agent",
+          "reply": "Added a window chip on the Brief that opens quick windows and a from/to form. The choice persists in local storage and the digest refetches on change.",
+          "actions": [
+            "WINDOWS presets and custom range in Brief.jsx; persisted with useLocal.",
+            "Server bounds the window (max about 92 days, 'to' capped at now)."
+          ],
+          "verification": [
+            "Switching 24 h to 7 d changes counts and items; custom range returns filings in that range."
+          ]
+        },
+        {
+          "role": "user",
+          "prompt": "Add notifications. Let me set end-of-day price and volume thresholds, choose per filing category whether to always alert or mute, and get a browser notification when a new material filing arrives."
+        },
+        {
+          "role": "agent",
+          "reply": "Rules now has price and volume sliders, a notification switch that asks for permission, and per-category overrides. The Brief notifies once per new material filing.",
+          "actions": [
+            "DEFAULT_RULES and moveOf/tierOf in lib.js.",
+            "Notification permission flow with clear messages when blocked or unsupported (iPhone needs the app installed).",
+            "Seen-list in local storage so each filing notifies only once."
+          ],
+          "verification": [
+            "Threshold changes move holdings in and out of Moves; a muted category drops to routine."
+          ]
+        },
+        {
+          "role": "user",
+          "prompt": "Add a portfolio pulse to the home screen: how my holdings closed on average, how many rose and fell, and the biggest movers with a sparkline."
+        },
+        {
+          "role": "agent",
+          "reply": "Added the Holdings card under the hero: average move, breadth bar, top three movers with price, volume spike and 30-day spark, expandable to all holdings.",
+          "actions": [
+            "Pulse component; tapping a row opens that company's research."
+          ],
+          "verification": [
+            "Screenshot shows -0.71% average, 4 up and 13 down, three movers."
+          ]
+        },
+        {
+          "role": "user",
+          "prompt": "Before this goes on the open internet, add an access lock so nobody can use the app or spend my model budget. Use a secret code from an environment variable for now; a real login page comes later, so keep the check in one place."
+        },
+        {
+          "role": "agent",
+          "reply": "ACCESS_CODE in the backend env gates every API route. The app opens to a lock screen; the code is entered once per device and sent in a header. Comparison is constant time, and wrong codes are rate-limited per IP.",
+          "actions": [
+            "server.js: /api/access and /api/unlock; gate on all other /api routes; codeOk() is the single swap point for future sessions.",
+            "10 wrong codes in 15 minutes blocks that IP, even for the right code.",
+            "Client: Lock screen, code stored per device, automatic return to the lock screen on any 401, 'Lock FINN on this device' in Rules.",
+            "Service worker never caches the access check.",
+            "Generated a random code into the git-ignored .env without printing it."
+          ],
+          "verification": [
+            "Without the code: /api/meta and Ask return 401, the page still loads.",
+            "Wrong code 401, right code 200.",
+            "After 10 wrong codes, the right code returns 429.",
+            "Lock screen screenshot matches the design system."
+          ]
+        }
+      ]
+    },
+    {
+      "phase": 4,
+      "name": "Security audit",
+      "turns": [
+        {
+          "role": "user",
+          "prompt": "Run a security audit of the whole app against this checklist. For every item, report Pass, Fail or Not applicable with the evidence. Fix every Fail, then prove each fix against the running server. Do not print secrets.\n\n1. Secrets and credentials\n   - No API keys, tokens or passwords hardcoded; search the code and the full git history.\n   - No secrets in client-side code or client environment variables.\n   - Environment variables set in every environment; nothing fails silently when one is missing.\n   - .gitignore excludes every .env file and none is tracked.\n2. Authentication\n   - Passwords hashed with a modern algorithm; sessions expire; strong signing secrets.\n   - Reset tokens expire and are single use; email verification enforced; OAuth state validated.\n3. Authorization\n   - Every API route checks who the caller is; public routes return only public data.\n   - Users can only reach their own data (test for IDOR by swapping ids).\n   - Admin routes restricted; tenant boundaries enforced on the server.\n4. Input validation\n   - Parameterised queries, no string-built queries or operator injection.\n   - Uploads restricted by type and size on the server.\n   - User and model text escaped before rendering; no raw HTML injection.\n5. Rate limiting\n   - Login and reset endpoints rate-limited without permanent lockouts.\n   - AI endpoints have per-user and overall spend limits.\n6. Payments and webhooks\n   - Webhook signatures verified; events processed once; access checked on the server.\n7. Infrastructure\n   - Row-level security where a database is exposed directly.\n   - Error responses never leak stack traces, upstream URLs or file paths.\n\nAlso check: server-side request forgery, security headers, CORS, request size limits and dependency vulnerabilities.",
+          "why_this_prompt_works": "A named checklist turns 'make it secure' into testable items, and 'prove each fix' forces evidence instead of claims."
+        },
+        {
+          "role": "agent",
+          "reply": "Audited all 25 items. Payments, uploads, accounts and SQL do not exist in FINN, so those items are not applicable and are listed as such. Secrets, client code, env handling and .gitignore passed. Five gaps found and fixed.",
+          "findings": [
+            "Spend abuse: model endpoints had no limits, so anyone could run up the bill.",
+            "Error leakage: upstream error messages were returned to the browser verbatim.",
+            "Open CORS: any website could call the API from a visitor's browser.",
+            "Unvalidated ticker in the research route reached upstream URLs.",
+            "Dependency: the PDF library pulled in canvas -> tar with a critical path-traversal advisory.",
+            "Links taken from scraped pages could in theory carry javascript: URLs."
+          ],
+          "actions": [
+            "llm.js: server-wide cap on fresh tokens per day (LLM_DAILY_TOKENS, default 2M); cached answers free.",
+            "server.js: per-IP limits (300/min on /api, 30 model calls per 10 min, 12 new analyses per hour; polling a running job is free).",
+            "server.js: CSP, X-Frame-Options DENY, nosniff, referrer and permissions policies, X-Powered-By removed.",
+            "server.js: CORS off unless CORS_ORIGIN lists an origin; JSON bodies capped at 50 kB; digest window bounded.",
+            "server.js: ticker route parameter validated; errors logged server-side, generic or allow-listed message to the client.",
+            "unpdf upgraded to 2.x (same API, no canvas or tar).",
+            "Client: safeUrl() lets only http(s) links render."
+          ],
+          "verification": [
+            "npm audit --omit=dev: 0 vulnerabilities in both packages.",
+            "Ticker '../../etc' and '<script>' return 400.",
+            "Request with a foreign Origin gets no CORS header.",
+            "31st Ask within 10 minutes returns 429 with Retry-After (tested with invalid questions so no tokens were spent).",
+            "Re-tested PDF extraction on unpdf 2.x: 473 pages in 3.4 s.",
+            "Page renders fully under the new Content-Security-Policy."
+          ]
+        },
+        {
+          "role": "user",
+          "prompt": "Now test specifically for IDOR. List every route that takes an id or an object from the client, try to reach data the caller should not, and check whether shared caches can be poisoned across users."
+        },
+        {
+          "role": "agent",
+          "reply": "No per-user data lives on the server, and caches are keyed by document URL or a hash of the full prompt, so they cannot be poisoned across users. One real weakness: the enrich endpoint trusted a whole filing object from the browser, so a caller could pair one company with another's filing or put their own text in front of the model. Fixed with a server-side lookup.",
+          "findings": [
+            "/api/enrich accepted client-supplied title, summary, URL, category and ticker."
+          ],
+          "actions": [
+            "store.js: getFiling(id).",
+            "push.js: enrichById(id, ticker) loads the filing from the store and verifies it belongs to that company.",
+            "Unknown id and mismatched company return the same 404, so ids cannot be enumerated; non-string ids rejected before any query.",
+            "Client sends only { id, ticker, read }."
+          ],
+          "verification": [
+            "Own id + own company: 200.",
+            "Same id + another company: 404.",
+            "Made-up id: 404.",
+            "Object as id ({\"$ne\": null}): 400.",
+            "Old client-built filing object: 400.",
+            "No access code: 401."
+          ]
+        },
+        {
+          "role": "user",
+          "prompt": "Document the audit in the README: a threat model, the status of every checklist item with how it is met, extra hardening, the verification results and the open items. Then rewrite the README as complete project documentation, including an API reference and a function-level module reference."
+        },
+        {
+          "role": "agent",
+          "reply": "README restructured into full documentation: features, quick start, configuration by concern, deployment, PWA install, architecture diagram and layout, push and pull pipelines, API reference with request and response shapes, module and function reference, and the security section (threat model, 25-item audit, hardening, 14 verification tests, open items).",
+          "actions": [
+            "README.md rewritten; checked every endpoint, response shape and limit against the code."
+          ],
+          "verification": [
+            "Internal links point to files that exist; no stale claims (an outdated SSRF note was corrected)."
+          ]
+        }
+      ]
+    },
+    {
+      "phase": 5,
+      "name": "Deployment",
+      "turns": [
+        {
+          "role": "user",
+          "prompt": "Prepare FINN for deployment as a single Node web service over HTTPS. List the exact build and start commands and the environment it needs, run every pre-deployment check you can locally, and give me a log I can fill in on the host."
+        },
+        {
+          "role": "agent",
+          "reply": "FINN deploys as one service: the backend serves the API and the built client. Pre-deployment checks below were run locally; host steps are listed in order with what to verify after each.",
+          "actions": [
+            "Build command: cd frontend && npm install && npm run build && cd ../backend && npm install",
+            "Start command: node backend/src/server.js",
+            "Required env: ACCESS_CODE, GLM_API_KEY, GLM_BASE_URL, GLM_MODEL",
+            "Recommended env: TRUST_PROXY=1; DATA_DIR on a persistent disk or MONGODB_URI"
+          ]
+        }
+      ],
+      "deployment_log": [
+        {
+          "step": "Frontend production build",
+          "status": "done",
+          "result": "vite build: about 186 kB JS (about 60 kB gzipped), 0 errors"
+        },
+        {
+          "step": "Server syntax check",
+          "status": "done",
+          "result": "node --check passes on every changed server file"
+        },
+        {
+          "step": "Dependency audit",
+          "status": "done",
+          "result": "npm audit --omit=dev: 0 vulnerabilities (backend and frontend)"
+        },
+        {
+          "step": "Secret scan of git history",
+          "status": "done",
+          "result": "API key and access code found in no commit; .env and data files untracked"
+        },
+        {
+          "step": "Security headers",
+          "status": "done",
+          "result": "CSP, X-Frame-Options, nosniff, referrer and permissions policies present on /"
+        },
+        {
+          "step": "Access gate",
+          "status": "done",
+          "result": "401 without code, 200 with code, 429 after 10 wrong codes"
+        },
+        {
+          "step": "Push to GitHub",
+          "status": "done",
+          "result": "main on github.com/rohit-541/FINN"
+        },
+        {
+          "step": "Create web service on the host from the GitHub repo",
+          "status": "pending",
+          "verify": "Build log ends without errors"
+        },
+        {
+          "step": "Set environment variables on the host",
+          "status": "pending",
+          "verify": "Startup log shows 'model: glm' and no ACCESS_CODE warning"
+        },
+        {
+          "step": "Attach persistent disk and set DATA_DIR (or set MONGODB_URI)",
+          "status": "pending",
+          "verify": "Filings history survives a restart"
+        },
+        {
+          "step": "Open the HTTPS URL",
+          "status": "pending",
+          "verify": "Lock screen appears; unlock with the code; Brief loads"
+        },
+        {
+          "step": "Install as an app on a phone",
+          "status": "pending",
+          "verify": "Install prompt (Android) or Add to Home Screen (iPhone) works over HTTPS"
+        },
+        {
+          "step": "Smoke-test the model path",
+          "status": "pending",
+          "verify": "Ask on one company returns cited quotes; Rules shows tokens spent"
+        },
+        {
+          "step": "Check limits in production",
+          "status": "pending",
+          "verify": "With TRUST_PROXY=1, a burst of wrong codes from one device returns 429"
+        }
+      ]
+    }
+  ]
+}
