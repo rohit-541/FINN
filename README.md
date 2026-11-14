@@ -9,7 +9,7 @@ FINN does two jobs:
 
 It is built to be cheap to run. Rules do the sorting, models are called only when a person opens something, and every filed document and model answer is cached.
 
-**How it was built:** [`docs/agentic-build-log.json`](docs/agentic-build-log.json) records the full build with an AI coding agent: each prompt, the agent's reply, what changed and how it was verified. It runs from the first requirements prompt through iteration, features and the security audit to deployment.
+**How it was built:** [`docs/agentic-build-log.json`](docs/agentic-build-log.json) is the build conversation with an AI coding agent, in chat-export format: 20 prompts and replies, with the agent's tool calls and verification results. It runs from the first requirements prompt through iteration, features, the security and SEO audits to deployment.
 
 ---
 
