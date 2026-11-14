@@ -8,7 +8,9 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 try { process.loadEnvFile(path.join(here, '../.env')); } catch { /* no .env is fine */ }
 
-const { initStore, storeMode } = await import('./store.js');
+// a namespace import keeps storeMode live: it changes when initStore() connects to MongoDB
+const store = await import('./store.js');
+const { initStore } = store;
 const { digest, market, enrichById, loadCompanies } = await import('./push.js');
 const { facts, analysis, ask } = await import('./research.js');
 const { search } = await import('./sources/screener.js');
@@ -28,7 +30,7 @@ const ON_VERCEL = !!process.env.VERCEL;
 // Vercel's edge sets that header itself, so it is trusted there by default.
 app.set('trust proxy', Number(process.env.TRUST_PROXY ?? (ON_VERCEL ? 1 : 0)));
 
-// Baseline security headers. The client is self-hosted except Google Fonts.
+// Baseline security headers. Everything the client loads, fonts included, is self-hosted.
 app.use((_req, res, next) => {
   res.set({
     'X-Content-Type-Options': 'nosniff',
@@ -36,8 +38,8 @@ app.use((_req, res, next) => {
     'X-Frame-Options': 'DENY',
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
     'Content-Security-Policy': [
-      "default-src 'self'", "script-src 'self'", "style-src 'self' https://fonts.googleapis.com",
-      "font-src 'self' https://fonts.gstatic.com", "img-src 'self' data:", "connect-src 'self'",
+      "default-src 'self'", "script-src 'self'", "style-src 'self'",
+      "font-src 'self'", "img-src 'self' data:", "connect-src 'self'",
       "frame-ancestors 'none'", "base-uri 'self'", "form-action 'self'",
     ].join('; '),
   });
@@ -134,7 +136,7 @@ const wrap = (fn) => (req, res) => fn(req, res).catch((e) => {
 
 app.get('/api/meta', wrap(async (_req, res) => res.json({
   portfolio: PORTFOLIO, picks: RESEARCH_PICKS, categories: CATEGORY_LABEL,
-  llm: llmInfo(), store: storeMode, feed: feedState, access: !!ACCESS_CODE,
+  llm: llmInfo(), store: store.storeMode, feed: feedState, access: !!ACCESS_CODE,
 })));
 
 app.get('/api/digest', wrap(async (req, res) => {
@@ -184,6 +186,9 @@ app.post('/api/research/:ticker/ask', modelLimit, wrap(async (req, res) => {
   res.json(await ask(req.params.ticker, q));
 }));
 
+// Unknown API paths answer in JSON, like every other API error.
+app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found.' }));
+
 // In production the same server hands out the built client, so there is one thing to deploy.
 const dist = path.join(here, '../../frontend/dist');
 
@@ -229,8 +234,16 @@ if (fs.existsSync(dist)) {
   const page = fs.readFileSync(path.join(dist, 'index.html'), 'utf8').replaceAll('__SITE_URL__', SITE_URL);
   const sendPage = (_req, res) => res.type('html').set('Cache-Control', 'no-cache').send(page);
   app.get('/', sendPage);
+  // Fingerprinted bundles and fonts never change under the same name: cache them for a year.
+  const forever = { index: false, immutable: true, maxAge: '1y' };
+  app.use('/assets', express.static(path.join(dist, 'assets'), forever));
+  app.use('/fonts', express.static(path.join(dist, 'fonts'), forever));
   app.use(express.static(dist, { index: false }));
-  app.get(/^\/(?!api\/).*/, sendPage);
+  app.get('/index.html', sendPage);
+  // The client routes by hash, so the app lives only at '/'. Any other path is a real 404:
+  // a soft 200 would let crawlers index endless junk URLs.
+  const notFound = fs.existsSync(path.join(dist, '404.html')) ? fs.readFileSync(path.join(dist, '404.html'), 'utf8') : 'Not found';
+  app.get(/^\/(?!api\/).*/, (_req, res) => res.status(404).type('html').send(notFound));
 }
 
 await initStore();
