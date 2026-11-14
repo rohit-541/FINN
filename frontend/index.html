@@ -16,6 +16,22 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Titan+One&family=Geist:wght@400..700&family=Geist+Mono:wght@400..500&display=swap" rel="stylesheet" />
     <title>FINN</title>
+    <!-- SEO: __SITE_URL__ is replaced by the server with SITE_URL (empty when unset, leaving paths relative) -->
+    <link rel="canonical" href="__SITE_URL__/" />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="FINN" />
+    <meta property="og:title" content="FINN: portfolio filings brief and stock research" />
+    <meta property="og:description" content="FINN reads every filing across your portfolio and shows you the few that matter, and researches any NSE company from its own reports." />
+    <meta property="og:url" content="__SITE_URL__/" />
+    <meta property="og:image" content="__SITE_URL__/icons/icon-512.png" />
+    <meta property="og:locale" content="en_IN" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="FINN: portfolio filings brief and stock research" />
+    <meta name="twitter:description" content="Every filing across your portfolio, the few that matter, and primary-source research on any NSE company." />
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"WebApplication","name":"FINN","url":"__SITE_URL__/","applicationCategory":"FinanceApplication","operatingSystem":"Any","description":"A mobile-first investment agent for Indian equities: a prioritised brief of exchange filings and primary-source company research.","offers":{"@type":"Offer","price":"0","priceCurrency":"INR"}}
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -183,9 +183,49 @@ app.post('/api/research/:ticker/ask', modelLimit, wrap(async (req, res) => {
 
 // In production the same server hands out the built client, so there is one thing to deploy.
 const dist = path.join(here, '../../frontend/dist');
+
+// ---------- SEO ----------
+// SITE_URL is the public origin (https://finn.example.com). Only its origin is used, so a path,
+// query or stray character can never reach the page or the XML. Without it, canonical and share
+// tags stay relative and no sitemap is served: an absolute URL is never built from the Host header.
+const SITE_URL = (() => {
+  try {
+    const u = new URL(process.env.SITE_URL || '');
+    return u.protocol === 'https:' || u.protocol === 'http:' ? u.origin : '';
+  } catch { return ''; }
+})();
+if (!SITE_URL) console.warn('[seo] SITE_URL is not set: canonical tags stay relative and /sitemap.xml returns 404.');
+
+app.get('/robots.txt', (_req, res) => {
+  res.type('text/plain').set('Cache-Control', 'public, max-age=86400').send(
+    ['User-agent: *', 'Allow: /', 'Disallow: /api/', ...(SITE_URL ? [`Sitemap: ${SITE_URL}/sitemap.xml`] : [])].join('\n') + '\n',
+  );
+});
+
+// The client routes by hash (#/brief), which crawlers ignore, so the home page is the one indexable URL.
+app.get('/sitemap.xml', (_req, res) => {
+  if (!SITE_URL) return res.status(404).type('text/plain').send('Set SITE_URL to publish a sitemap.\n');
+  let lastmod = new Date().toISOString().slice(0, 10);
+  try { lastmod = fs.statSync(path.join(dist, 'index.html')).mtime.toISOString().slice(0, 10); } catch { /* no build yet */ }
+  res.type('application/xml').set('Cache-Control', 'public, max-age=86400').send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${SITE_URL}/</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>
+`);
+});
+
 if (fs.existsSync(dist)) {
-  app.use(express.static(dist));
-  app.get(/^\/(?!api\/).*/, (_req, res) => res.sendFile(path.join(dist, 'index.html')));
+  // index.html is served with __SITE_URL__ filled in; everything else is plain static files.
+  const page = fs.readFileSync(path.join(dist, 'index.html'), 'utf8').replaceAll('__SITE_URL__', SITE_URL);
+  const sendPage = (_req, res) => res.type('html').set('Cache-Control', 'no-cache').send(page);
+  app.get('/', sendPage);
+  app.use(express.static(dist, { index: false }));
+  app.get(/^\/(?!api\/).*/, sendPage);
 }
 
 await initStore();

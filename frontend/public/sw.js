@@ -2,7 +2,7 @@
 //   page      -> network first, cached shell when offline
 //   /assets/* -> cache first (Vite fingerprints these, so a cached copy is never stale)
 //   GET /api  -> network first, last good answer when offline, so the brief still opens on a train
-const VERSION = 'finn-v3';
+const VERSION = 'finn-v4';
 const SHELL = ['/', '/manifest.webmanifest', '/icons/icon-192.png'];
 
 self.addEventListener('install', (e) => {
@@ -29,9 +29,13 @@ self.addEventListener('fetch', (e) => {
   const { request } = e;
   const url = new URL(request.url);
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
+  // crawler files go straight to the network and are never cached
+  if (url.pathname === '/sitemap.xml' || url.pathname === '/robots.txt') return;
 
   if (request.mode === 'navigate') {
-    e.respondWith(fetch(request).then((r) => put('/', r)).catch(() => caches.match('/')));
+    // only an HTML page may become the cached app shell, never an XML or text file opened in a tab
+    const shell = (r) => ((r.headers.get('content-type') || '').includes('text/html') ? put('/', r) : r);
+    e.respondWith(fetch(request).then(shell).catch(() => caches.match('/')));
     return;
   }
   if (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/')) {
