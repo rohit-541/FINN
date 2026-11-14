@@ -161,3 +161,6 @@ Coloring_Dominoes.cpp
 # Vercel CLI project link
 .vercel
 .env*
+
+# Submission documents (contain the access code)
+submission/
