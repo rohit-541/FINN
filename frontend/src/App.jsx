@@ -1,13 +1,55 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { api, useAsync, useLocal, DEFAULT_RULES, accessCode } from './lib.js';
 import Brief from './Brief.jsx';
-import Research from './Research.jsx';
-import Rules from './Rules.jsx';
+
+// The Brief is the first screen, so it ships in the main bundle. Research and Rules load on first
+// visit, which keeps their code off the critical path. Rules reuses Research's Search, so the two
+// share one chunk.
+const Research = lazy(() => import('./Research.jsx'));
+const Rules = lazy(() => import('./Rules.jsx'));
 
 const parseHash = () => {
-  const [, tab = 'brief', arg] = window.location.hash.split('/');
-  return { tab: ['brief', 'research', 'rules'].includes(tab) ? tab : 'brief', arg: arg ? decodeURIComponent(arg) : null };
+  const [, tab, arg] = window.location.hash.split('/');
+  if (!tab) return { tab: 'brief', arg: null };
+  return { tab: ['brief', 'research', 'rules'].includes(tab) ? tab : 'missing', arg: arg ? decodeURIComponent(arg) : null };
 };
+
+// The home screen keeps the full title from index.html (it is the indexed page); others say where you are.
+const HOME_TITLE = document.title;
+const titleOf = ({ tab, arg }) => ({
+  brief: HOME_TITLE,
+  research: arg ? `${arg.toUpperCase()} research · FINN` : 'Research · FINN',
+  rules: 'Rules · FINN',
+  missing: 'Page not found · FINN',
+}[tab]);
+
+function NotFound() {
+  return (
+    <section className="not-found">
+      <span className="code" aria-hidden="true">404</span>
+      <h1 className="title">Page not found</h1>
+      <p>This screen does not exist. The brief and research are a tap away.</p>
+      <a className="btn" href="#/brief">Back to the brief</a>
+    </section>
+  );
+}
+
+function Toasts() {
+  const [t, setT] = useState(null);
+  useEffect(() => {
+    let timer;
+    const on = (e) => { setT({ ...e.detail, id: Date.now() }); clearTimeout(timer); timer = setTimeout(() => setT(null), 2800); };
+    window.addEventListener('finn-toast', on);
+    return () => { window.removeEventListener('finn-toast', on); clearTimeout(timer); };
+  }, []);
+  return (
+    <div role="status" aria-live="polite" className="sr-live">
+      {t && <div key={t.id} className={`toast ${t.kind === 'bad' ? 'bad' : ''}`}>{t.text}</div>}
+    </div>
+  );
+}
+
+const Loading = () => <div className="skeleton-stack"><i /><i /><i /></div>;
 
 const TABS = [
   { id: 'brief', label: 'Brief', d: 'M7 4h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM9 9h6M9 13h6M9 17h3' },
@@ -71,6 +113,8 @@ function Finn() {
     return () => window.removeEventListener('hashchange', on);
   }, []);
 
+  useEffect(() => { document.title = titleOf(route); }, [route]);
+
   const go = (tab, arg) => { window.location.hash = `#/${tab}${arg ? `/${encodeURIComponent(arg)}` : ''}`; };
   const holdings = portfolio || meta.data?.portfolio;
 
@@ -82,13 +126,17 @@ function Finn() {
             <strong>FINN cannot reach its backend.</strong> Start it with <code>npm start</code> in <code>backend/</code>, then reload.
           </div>
         )}
-        {holdings && route.tab === 'brief' && <Brief portfolio={holdings} rules={rules} go={go} />}
-        {holdings && route.tab === 'research' && <Research ticker={route.arg} meta={meta.data} portfolio={holdings} go={go} />}
-        {holdings && route.tab === 'rules' && (
-          <Rules meta={meta.data} portfolio={holdings} setPortfolio={setPortfolio} rules={rules} setRules={setRules} reloadMeta={meta.reload} />
-        )}
-        {!holdings && !meta.error && <div className="skeleton-stack"><i /><i /><i /></div>}
+        {route.tab === 'missing' && <NotFound />}
+        <Suspense fallback={<Loading />}>
+          {holdings && route.tab === 'brief' && <Brief portfolio={holdings} rules={rules} go={go} />}
+          {holdings && route.tab === 'research' && <Research ticker={route.arg} meta={meta.data} portfolio={holdings} go={go} />}
+          {holdings && route.tab === 'rules' && (
+            <Rules meta={meta.data} portfolio={holdings} setPortfolio={setPortfolio} rules={rules} setRules={setRules} reloadMeta={meta.reload} />
+          )}
+        </Suspense>
+        {!holdings && !meta.error && route.tab !== 'missing' && <Loading />}
       </main>
+      <Toasts />
       <nav className="dock" aria-label="Sections">
         {TABS.map((t) => {
           const current = route.tab === t.id;

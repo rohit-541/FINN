@@ -117,3 +117,7 @@ export function moveOf(q, rules) {
 
 // Links that come from scraped pages are only rendered when they are plain http(s), never javascript: or data:.
 export const safeUrl = (u) => { try { const x = new URL(u); return x.protocol === 'https:' || x.protocol === 'http:' ? x.href : undefined; } catch { return undefined; } };
+
+// Short confirmations and errors from anywhere: toast('Added TCS') or toast('Could not save', 'bad').
+// App renders them in one polite live region, so screen readers announce them too.
+export const toast = (text, kind = 'good') => window.dispatchEvent(new CustomEvent('finn-toast', { detail: { text, kind } }));

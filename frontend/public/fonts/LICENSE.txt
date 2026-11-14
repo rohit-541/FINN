@@ -1,0 +1,5 @@
+Fonts in this folder are self-hosted Latin subsets, each licensed under the SIL Open Font License 1.1
+(https://openfontlicense.org):
+
+- Geist and Geist Mono (Vercel), https://github.com/vercel/geist-font
+- Titan One (Rodrigo Fuenzalida), https://fonts.google.com/specimen/Titan+One

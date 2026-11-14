@@ -1,0 +1,12 @@
+@font-face { font-family: "Geist"; src: url("/fonts/geist-latin.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
+@font-face { font-family: "Titan One"; src: url("/fonts/titan-one-latin.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+:root { --bg: #f3f3f7; --wash: #e3def6; --ink: #1b1a22; --muted: #666573; --accent: #6a4fd8; }
+* { box-sizing: border-box; margin: 0; }
+body { min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; background: linear-gradient(180deg, var(--wash) 0%, var(--bg) 60%); font-family: "Geist", system-ui, sans-serif; color: var(--ink); }
+.nf { width: 100%; max-width: 380px; display: grid; justify-items: center; gap: 10px; padding: 32px 22px 26px; background: #fff; border-radius: 28px; box-shadow: 0 10px 30px rgba(60, 50, 110, 0.08); text-align: center; }
+.nf img { border-radius: 18px; }
+.code { font-family: "Titan One", "Geist", sans-serif; font-size: 44px; color: var(--accent); letter-spacing: 0.02em; }
+h1 { font-size: 20px; font-weight: 600; }
+.nf p:not(.code) { font-size: 14px; line-height: 1.5; color: var(--muted); max-width: 30ch; }
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; margin-top: 8px; padding: 0 22px; border-radius: 999px; background: var(--accent); color: #fff; font-weight: 600; text-decoration: none; }
+.btn:hover { background: #5b41c9; }

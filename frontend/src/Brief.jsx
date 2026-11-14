@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { api, useAsync, useLocal, ago, num, pct, dir, price, tierOf, moveOf, safeUrl } from './lib.js';
+import { api, useAsync, useLocal, ago, num, pct, dir, price, tierOf, moveOf, safeUrl, toast } from './lib.js';
 import { Spark } from './Charts.jsx';
 
 const DAY = 864e5;
@@ -75,7 +75,10 @@ function Filing({ item, material, embedded, onClear, go }) {
 
   const read = () => {
     setReading(true);
-    api.enrich(item, true).then((r) => setExtra((e) => ({ ...e, ...r }))).catch((e) => setExtra((x) => ({ ...x, briefError: e.message }))).finally(() => setReading(false));
+    api.enrich(item, true)
+      .then((r) => { setExtra((e) => ({ ...e, ...r })); if (r.brief) toast('Summary ready'); })
+      .catch((e) => { setExtra((x) => ({ ...x, briefError: e.message })); toast('Could not read this filing', 'bad'); })
+      .finally(() => setReading(false));
   };
 
   const meta = (
@@ -203,7 +206,7 @@ export default function Brief({ portfolio, rules, go }) {
     try { localStorage.setItem('finn.notified', JSON.stringify([...new Set([...(seen || []), ...material.map((m) => m.id)])].slice(-300))); } catch { /* private mode */ }
   }, [d]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const clear = (id) => { setCleared((c) => [...c, id].slice(-500)); setOpen(null); };
+  const clear = (id) => { setCleared((c) => [...c, id].slice(-500)); setOpen(null); toast('Filing cleared'); };
   const [top, ...rest] = material;
   const others = [...new Set(rest.map((m) => m.ticker))];
   const eod = mkt.data?.[0]?.date;
@@ -216,7 +219,7 @@ export default function Brief({ portfolio, rules, go }) {
           <h1>Brief</h1>
           <p>{words}</p>
         </div>
-        <button className="date-chip" onClick={() => toggle('window')} aria-expanded={open === 'window'} aria-label={`Time window: ${words}. Change`}>
+        <button className="date-chip" onClick={() => toggle('window')} aria-expanded={open === 'window'} aria-label={`${preset ? `${preset.n} ${preset.u}` : 'Custom dates'}: change the time window`}>
           <b>{preset ? preset.n : '··'}</b><small>{preset ? preset.u : 'dates'}</small>
           {material.length > 0 && <i className="dot" />}
         </button>
@@ -232,7 +235,8 @@ export default function Brief({ portfolio, rules, go }) {
           <form className="dates" onSubmit={(e) => {
             e.preventDefault();
             const f = new FormData(e.currentTarget);
-            setWin({ id: 'custom', from: f.get('from'), to: f.get('to') }); setOpen(null);
+            if (f.get('from') > f.get('to')) { toast('The start date must be before the end date', 'bad'); return; }
+            setWin({ id: 'custom', from: f.get('from'), to: f.get('to') }); setOpen(null); toast(`Showing ${f.get('from')} to ${f.get('to')}`);
           }}>
             <label>From<input type="date" name="from" defaultValue={win.from || iso(Date.now() - 14 * DAY)} max={iso(Date.now())} required /></label>
             <label>To<input type="date" name="to" defaultValue={win.to || iso(Date.now())} max={iso(Date.now())} required /></label>
@@ -334,7 +338,7 @@ export default function Brief({ portfolio, rules, go }) {
             <span className="round-sm"><Icon d={ARROW} /></span>
           </a>
           {cleared.length > 0 && (d.items || []).some((it) => cleared.includes(it.id)) && (
-            <p className="fine center"><button className="link" onClick={() => setCleared([])}>Bring back cleared filings</button></p>
+            <p className="fine center"><button className="link" onClick={() => { setCleared([]); toast('Cleared filings are back'); }}>Bring back cleared filings</button></p>
           )}
         </>
       )}

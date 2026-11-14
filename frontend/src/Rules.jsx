@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { DEFAULT_RULES, num, accessCode } from './lib.js';
+import { DEFAULT_RULES, num, accessCode, toast } from './lib.js';
 import { Search } from './Research.jsx';
 
 const STATES = [['auto', 'FINN decides'], ['always', 'Always alert'], ['mute', 'Mute']];
@@ -21,7 +21,7 @@ function Install() {
     if (!e) return;
     e.prompt();
     const { outcome } = await e.userChoice;
-    if (outcome === 'accepted') { window.finnInstall = null; setCan(false); setDone(true); }
+    if (outcome === 'accepted') { window.finnInstall = null; setCan(false); setDone(true); toast('FINN is installed'); }
   };
   return (
     <div className="install-row">
@@ -38,17 +38,29 @@ function Install() {
 export default function Rules({ meta, portfolio, setPortfolio, rules, setRules, reloadMeta }) {
   const [note, setNote] = useState('');
   const set = (patch) => setRules((r) => ({ ...r, ...patch }));
-  const setCat = (cat, v) => setRules((r) => {
-    const categories = { ...r.categories };
-    if (v === 'auto') delete categories[cat]; else categories[cat] = v;
-    return { ...r, categories };
-  });
+  const setCat = (cat, v) => {
+    setRules((r) => {
+      const categories = { ...r.categories };
+      if (v === 'auto') delete categories[cat]; else categories[cat] = v;
+      return { ...r, categories };
+    });
+    const label = meta?.categories?.[cat] || cat;
+    toast(v === 'mute' ? `${label} filings muted` : v === 'always' ? `${label} filings always alert` : `${label}: FINN decides`);
+  };
+  const add = (t) => {
+    if (portfolio.includes(t)) { toast(`${t} is already in your portfolio`, 'bad'); return; }
+    setPortfolio([...portfolio, t]); toast(`Added ${t} to your portfolio`);
+  };
+  const remove = (t) => {
+    if (portfolio.length <= 1) { toast('Keep at least one holding', 'bad'); return; }
+    setPortfolio(portfolio.filter((x) => x !== t)); toast(`Removed ${t}`);
+  };
 
   const notify = async () => {
-    if (rules.notify) { set({ notify: false }); return; }
-    if (typeof Notification === 'undefined') { setNote('This browser does not offer notifications. On iPhone, add FINN to the home screen first.'); return; }
+    if (rules.notify) { set({ notify: false }); toast('Notifications off'); return; }
+    if (typeof Notification === 'undefined') { setNote('This browser does not offer notifications. On iPhone, add FINN to the home screen first.'); toast('Notifications are not available here', 'bad'); return; }
     const p = await Notification.requestPermission();
-    if (p === 'granted') { set({ notify: true }); setNote(''); } else setNote('Notifications are blocked for this site in the browser settings.');
+    if (p === 'granted') { set({ notify: true }); setNote(''); toast('Notifications on for this device'); } else { setNote('Notifications are blocked for this site in the browser settings.'); toast('Notifications are blocked', 'bad'); }
   };
 
   const llm = meta?.llm;
@@ -84,7 +96,7 @@ export default function Rules({ meta, portfolio, setPortfolio, rules, setRules, 
           </button>
           {note && <p className="fine">{note}</p>}
           {(rules.price !== DEFAULT_RULES.price || rules.volume !== DEFAULT_RULES.volume) && (
-            <button className="link small" onClick={() => set({ price: DEFAULT_RULES.price, volume: DEFAULT_RULES.volume })}>Reset to ±{DEFAULT_RULES.price}% and {DEFAULT_RULES.volume}×</button>
+            <button className="link small" onClick={() => { set({ price: DEFAULT_RULES.price, volume: DEFAULT_RULES.volume }); toast('Thresholds reset'); }}>Reset to ±{DEFAULT_RULES.price}% and {DEFAULT_RULES.volume}×</button>
           )}
         </div>
       </section>
@@ -92,13 +104,13 @@ export default function Rules({ meta, portfolio, setPortfolio, rules, setRules, 
       <section className="set">
         <h2>Portfolio <span className="h-note">{portfolio.length} holdings</span></h2>
         <div className="card">
-          <Search placeholder="Add a company" onPick={(t) => setPortfolio([...new Set([...portfolio, t])])} />
+          <Search placeholder="Add a company" onPick={add} />
           <div className="chips holdings">
             {portfolio.map((t) => (
-              <button key={t} className="chip-btn sm" onClick={() => setPortfolio(portfolio.filter((x) => x !== t))} aria-label={`Remove ${t}`}>{t}<span aria-hidden="true"> ×</span></button>
+              <button key={t} className="chip-btn sm" onClick={() => remove(t)} aria-label={`Remove ${t}`}>{t}<span aria-hidden="true"> ×</span></button>
             ))}
           </div>
-          {meta && <button className="link small" onClick={() => setPortfolio(null)}>Restore the default portfolio</button>}
+          {meta && <button className="link small" onClick={() => { setPortfolio(null); toast('Default portfolio restored'); }}>Restore the default portfolio</button>}
         </div>
       </section>
 
@@ -128,7 +140,7 @@ export default function Rules({ meta, portfolio, setPortfolio, rules, setRules, 
               <div><span>Model</span><b>{llm?.enabled ? llm.fast : llm?.problem || 'None set'}</b></div>
               {u && <div><span>Tokens this session</span><b>{num(u.fast.in + u.fast.out)} fast, {num(u.smart.in + u.smart.out)} smart</b></div>}
               {u && <div><span>Answers from cache</span><b>{num(u.cacheHits)}</b></div>}
-              <div><span /><button className="link small" onClick={reloadMeta}>Refresh</button></div>
+              <div><span /><button className="link small" onClick={() => { reloadMeta(); toast('Figures refreshed'); }}>Refresh</button></div>
             </div>
           </details>
         </div>
@@ -136,6 +148,10 @@ export default function Rules({ meta, portfolio, setPortfolio, rules, setRules, 
           <button className="link small" onClick={() => { accessCode.set(''); window.location.reload(); }}>Lock FINN on this device</button>
         )}
       </section>
+
+      <footer className="site-foot">
+        © {new Date().getFullYear()} FINN · Data from NSE, BSE, Screener and Yahoo Finance · Not investment advice
+      </footer>
     </>
   );
 }

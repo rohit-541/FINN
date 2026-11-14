@@ -11,10 +11,14 @@ export function Search({ onPick, placeholder = 'Search any NSE company', autoFoc
   const [q, setQ] = useState('');
   const [rows, setRows] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
-    if (q.trim().length < 2) { setRows([]); return undefined; }
+    if (q.trim().length < 2) { setRows([]); setFailed(false); return undefined; }
     setBusy(true);
-    const t = setTimeout(() => api.search(q.trim()).then(setRows).catch(() => setRows([])).finally(() => setBusy(false)), 220);
+    const t = setTimeout(() => api.search(q.trim())
+      .then((r) => { setRows(r); setFailed(false); })
+      .catch(() => { setRows([]); setFailed(true); })
+      .finally(() => setBusy(false)), 220);
     return () => clearTimeout(t);
   }, [q]);
   return (
@@ -29,7 +33,8 @@ export function Search({ onPick, placeholder = 'Search any NSE company', autoFoc
               <span>{r.name}</span><span className="ticker">{r.ticker}</span>
             </button>
           ))}
-          {!busy && rows.length === 0 && <p className="fine">No company matches "{q}".</p>}
+          {!busy && failed && <p className="fine" role="alert">Search is unavailable right now. Try again in a moment.</p>}
+          {!busy && !failed && rows.length === 0 && <p className="fine">No company matches "{q}".</p>}
         </div>
       )}
     </div>
@@ -69,7 +74,7 @@ function Analysis({ ticker, enabled, onData }) {
     return <div className="working" role="status"><span className="pulse" />{job?.stage || 'Finding the documents'}<span className="fine">First read takes about a minute. After that it is instant.</span></div>;
   }
   if (job.status === 'error') {
-    return <div className="notice bad">The read failed: {job.error} <button className="link" onClick={() => setTick((t) => t + 1)}>Try again</button></div>;
+    return <div className="notice bad" role="alert">The read failed: {job.error} <button className="link" onClick={() => setTick((t) => t + 1)}>Try again</button></div>;
   }
   const v = job.data.verdict;
   if (!v) return <p className="quiet">No call transcript could be read for this company, so there is nothing to check promises against.</p>;
@@ -120,7 +125,7 @@ function Ask({ ticker, enabled }) {
       {enabled ? (
         <div className="chips">{QUESTIONS.map((x) => <button key={x} className="chip-btn" onClick={() => send(x)}>{x}</button>)}</div>
       ) : <p className="fine">Asking needs a model key on the backend.</p>}
-      {state?.error && <p className="fine">That did not work: {state.error}</p>}
+      {state?.error && <p className="fine" role="alert">That did not work: {state.error}</p>}
       {state?.a && (
         <div className="answer">
           <p>{state.a.answer}</p>
