@@ -537,3 +537,6 @@ section.set { margin-top: 22px; }
 .not-found .btn { margin-top: 6px; }
 .site-foot { margin: 28px 4px 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
 .sr-live { position: fixed; inset: auto 0 0 0; height: 0; pointer-events: none; }
+.hold-skel { min-height: 318px; background: linear-gradient(100deg, var(--surface) 30%, var(--raise) 50%, var(--surface) 70%) 0 0 / 200% 100%; animation: skel 1.4s linear infinite; }
+@keyframes skel { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .hold-skel { animation: none; } }

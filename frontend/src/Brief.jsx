@@ -220,7 +220,7 @@ export default function Brief({ portfolio, rules, go }) {
           <p>{words}</p>
         </div>
         <button className="date-chip" onClick={() => toggle('window')} aria-expanded={open === 'window'} aria-label={`${preset ? `${preset.n} ${preset.u}` : 'Custom dates'}: change the time window`}>
-          <b>{preset ? preset.n : '··'}</b><small>{preset ? preset.u : 'dates'}</small>
+          <b>{preset ? preset.n : '··'}</b>{' '}<small>{preset ? preset.u : 'dates'}</small>
           {material.length > 0 && <i className="dot" />}
         </button>
       </header>
@@ -263,7 +263,7 @@ export default function Brief({ portfolio, rules, go }) {
               </span>
             )}
           </div>
-          <p className="hero-sub">{top ? top.company : `${num(d.filings)} filings across ${portfolio.length} holdings. None need you.`}</p>
+          <p className="hero-sub">{top ? top.company : `${num(d.filings)} filing${d.filings === 1 ? '' : 's'} across ${portfolio.length} holdings. None need you.`}</p>
           {top
             ? <button className="mini-btn" onClick={() => toggle('hero')} aria-expanded={open === 'hero'}>{open === 'hero' ? 'Close' : 'Read'}</button>
             : win.id !== '7d' && win.id !== '30d'
@@ -273,7 +273,11 @@ export default function Brief({ portfolio, rules, go }) {
         </article>
       )}
 
-      {mkt.data && <Pulse quotes={mkt.data} go={go} open={open === 'pulse'} onToggle={() => toggle('pulse')} />}
+      {/* Holdings sit under the hero once the filings are in. Until prices arrive, a placeholder of the
+          same height holds the space, so nothing below jumps when the card appears (CLS). */}
+      {d && (mkt.data
+        ? <Pulse quotes={mkt.data} go={go} open={open === 'pulse'} onToggle={() => toggle('pulse')} />
+        : !mkt.error && <div className="hold hold-skel" aria-hidden="true" />)}
 
       {d && (
         <>
