@@ -1,9 +1,9 @@
 {
   "uuid": "838db1e4-bce2-588c-9d25-eefcc2b68fa3",
   "name": "Build FINN: mobile-first investment agent for Indian equities",
-  "summary": "End-to-end build of FINN with an AI coding agent: requirements and first build, ten rounds of iteration, four feature additions, a 25-point security audit with an IDOR test, an SEO audit, and deployment. Prompts are lightly edited for clarity; the changes, findings and verification results are from the build.",
+  "summary": "End-to-end build of FINN with an AI coding agent: requirements and first build, ten rounds of iteration, four feature additions, a 25-point security audit with an IDOR test, an SEO audit, and deployment to Vercel (https://finn-sandy.vercel.app). Prompts are lightly edited for clarity; the changes, findings and verification results are from the build.",
   "created_at": "2026-11-14T09:40:00+05:30",
-  "updated_at": "2026-11-15T12:51:00+05:30",
+  "updated_at": "2026-11-15T14:20:00+05:30",
   "model": "claude-opus-5-5",
   "project": {
     "name": "FINN",
@@ -1900,26 +1900,30 @@
       "uuid": "156cd90f-3af9-542c-82db-3a36ebd7e667",
       "sender": "human",
       "created_at": "2026-11-15T12:33:00+05:30",
-      "text": "Prepare FINN for deployment as a single Node web service over HTTPS. List the exact build and start commands and the environment it needs, run every pre-deployment check you can locally, and give me a log I can fill in on the host.",
+      "text": "Configure this repository to deploy on Vercel as one project with multiple services. Start from this suggested vercel.json: a backend service (root backend, framework express) and a frontend service (root frontend, framework vite), with /api/(.*) rewritten to the backend and everything else to the frontend.\n\n- Services are internal unless a top-level rewrite targets them; order rewrites from most to least specific.\n- Build and runtime keys belong inside each service, not at the top level.\n- If one service calls another server-side, add a binding on the calling service and read the injected URL in code instead of a hardcoded host.\n- Reconcile the code with the routing: path prefixes, client-side URLs, anything that assumes a long-running server.\n- Show me the final vercel.json and ask me to confirm the service names, which services are public and on what paths, and the bindings, before you finish.",
       "attachments": []
     },
     {
       "index": 39,
       "uuid": "28fed165-3796-523b-b583-7518738769b7",
       "sender": "assistant",
-      "created_at": "2026-11-15T12:51:00+05:30",
+      "created_at": "2026-11-15T13:12:00+05:30",
       "content": [
         {
           "type": "text",
-          "text": "FINN deploys as one service: the backend serves the API and the built client. Pre-deployment checks below were run locally; host steps are listed in order with what to verify after each."
+          "text": "Read Vercel's services and Express docs first. The backend receives the original path (/api/meta), so the Express routes work as they are. express.static is ignored on Vercel, so the frontend becomes its own static service. Then reconciled the parts of FINN that assumed one long-running server. No bindings are needed: the frontend is static and reaches the backend from the browser through the public /api path, and neither service calls the other server-side.\n\nPlease confirm: service names backend and frontend; backend public on /api/*, /robots.txt and /sitemap.xml, frontend on everything else; no bindings; whether you have MongoDB; Hobby or Pro plan."
+        },
+        {
+          "type": "text",
+          "text": "What I found:\n- The disk is read-only except /tmp, which is not shared between instances.\n- The NSE poller timer and app.listen assume a process that stays up.\n- The background analysis job could be frozen once its response is sent.\n- The server filled __SITE_URL__ into the page, but on Vercel the page is static.\n- Per-IP rate limits need the forwarded client IP."
         },
         {
           "type": "tool_use",
           "id": "toolu_105",
-          "name": "Write",
+          "name": "Edit",
           "input": {
-            "file_path": "README.md",
-            "description": "Build command: cd frontend && npm install && npm run build && cd ../backend && npm install"
+            "file_path": "backend/src/server.js",
+            "description": "export the app; listen, poll and warm only off Vercel; trust Vercel's X-Forwarded-For; SITE_URL falls back to the production domain."
           }
         },
         {
@@ -1930,10 +1934,10 @@
         {
           "type": "tool_use",
           "id": "toolu_106",
-          "name": "Write",
+          "name": "Edit",
           "input": {
-            "file_path": "README.md",
-            "description": "Start command: node backend/src/server.js"
+            "file_path": "backend/src/store.js",
+            "description": "/tmp data directory on Vercel, with a warning to set MONGODB_URI."
           }
         },
         {
@@ -1944,10 +1948,10 @@
         {
           "type": "tool_use",
           "id": "toolu_107",
-          "name": "Write",
+          "name": "Edit",
           "input": {
-            "file_path": "README.md",
-            "description": "Required env: ACCESS_CODE, GLM_API_KEY, GLM_BASE_URL, GLM_MODEL"
+            "file_path": "backend/src/research.js",
+            "description": "analysis job kept alive with waitUntil from @vercel/functions 3.11.3 (an older release was rejected for a high-severity zod advisory)."
           }
         },
         {
@@ -1958,10 +1962,9 @@
         {
           "type": "tool_use",
           "id": "toolu_108",
-          "name": "Write",
+          "name": "Edit",
           "input": {
-            "file_path": "README.md",
-            "description": "Recommended env: TRUST_PROXY=1; DATA_DIR on a persistent disk or MONGODB_URI"
+            "description": "vite.config.js: fill __SITE_URL__ at build time on Vercel; leave it for Express elsewhere."
           }
         },
         {
@@ -1972,6 +1975,358 @@
         {
           "type": "tool_use",
           "id": "toolu_109",
+          "name": "Edit",
+          "input": {
+            "description": "vercel.json: backend and frontend services, four rewrites, security headers on the static frontend, uncached sw.js."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_109",
+          "content": "ok"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_110",
+          "name": "Edit",
+          "input": {
+            "file_path": "README.md",
+            "description": "Vercel section."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_110",
+          "content": "ok"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_111",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: Backend imported with VERCEL=1"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_111",
+          "content": "Backend imported with VERCEL=1: exports the app and opens no port of its own."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_112",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: Access gate in function mode"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_112",
+          "content": "Access gate in function mode: 401 without the code, 200 with it; market data loads."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_113",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: Sitemap and robots.txt use the production domain; trust proxy is 1."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_113",
+          "content": "Sitemap and robots.txt use the production domain; trust proxy is 1."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_114",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: Vercel build fills the canonical URL; local build keeps the placeholder for Express."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_114",
+          "content": "Vercel build fills the canonical URL; local build keeps the placeholder for Express."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_115",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: Local single-server mode unchanged; npm audit reports 0 vulnerabilities."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_115",
+          "content": "Local single-server mode unchanged; npm audit reports 0 vulnerabilities."
+        },
+        {
+          "type": "text",
+          "text": "Checked:\n- Backend imported with VERCEL=1: exports the app and opens no port of its own.\n- Access gate in function mode: 401 without the code, 200 with it; market data loads.\n- Sitemap and robots.txt use the production domain; trust proxy is 1.\n- Vercel build fills the canonical URL; local build keeps the placeholder for Express.\n- Local single-server mode unchanged; npm audit reports 0 vulnerabilities."
+        }
+      ]
+    },
+    {
+      "index": 40,
+      "uuid": "7885c395-7856-50e5-ac1b-dd8bd110743a",
+      "sender": "human",
+      "created_at": "2026-11-15T13:16:00+05:30",
+      "text": "Confirmed: keep the service names, the public paths and no bindings. Commit and push.",
+      "attachments": []
+    },
+    {
+      "index": 41,
+      "uuid": "5520edef-0248-5030-a588-3a5578dbb5b6",
+      "sender": "assistant",
+      "created_at": "2026-11-15T13:37:00+05:30",
+      "content": [
+        {
+          "type": "text",
+          "text": "Committed as three Conventional Commits (backend function support, Vercel config, docs) and pushed to main."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_116",
+          "name": "Edit",
+          "input": {
+            "description": "feat(backend): run as a Vercel function"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_116",
+          "content": "ok"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_117",
+          "name": "Edit",
+          "input": {
+            "description": "chore(deploy): add Vercel services config"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_117",
+          "content": "ok"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_118",
+          "name": "Edit",
+          "input": {
+            "description": "docs: document deploying to Vercel"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_118",
+          "content": "ok"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_119",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: No API key or access code in any commit."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_119",
+          "content": "No API key or access code in any commit."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_120",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: Local main equals origin/main."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_120",
+          "content": "Local main equals origin/main."
+        },
+        {
+          "type": "text",
+          "text": "Checked:\n- No API key or access code in any commit.\n- Local main equals origin/main."
+        }
+      ]
+    },
+    {
+      "index": 42,
+      "uuid": "a06d541b-fa1d-59e3-97ea-aac986169879",
+      "sender": "human",
+      "created_at": "2026-11-15T13:41:00+05:30",
+      "text": "Deploy it on Vercel and add the deployment logs to the build log. Set the production environment from my local settings without printing any secret, then verify the live site end to end, including the data sources and one model call.",
+      "attachments": []
+    },
+    {
+      "index": 43,
+      "uuid": "26d419b9-a755-509e-8ad7-c12dd2adb9fb",
+      "sender": "assistant",
+      "created_at": "2026-11-15T14:20:00+05:30",
+      "content": [
+        {
+          "type": "text",
+          "text": "Deployed to production at https://finn-sandy.vercel.app. Every check passed. NSE, Screener, Yahoo Finance and the model gateway all answer from Vercel. Storage is temporary until MONGODB_URI is added."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_121",
+          "name": "Edit",
+          "input": {
+            "description": "Vercel CLI 65.8.0 via npx (a release a few weeks old); already logged in."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_121",
+          "content": "ok"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_122",
+          "name": "Edit",
+          "input": {
+            "description": "vercel link: created project 'finn' and connected the GitHub repository; .vercel and .env.local git-ignored."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_122",
+          "content": "ok"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_123",
+          "name": "Edit",
+          "input": {
+            "description": "vercel env add (production): ACCESS_CODE, GLM_API_KEY, GLM_BASE_URL, GLM_MODEL, piped from backend/.env and never printed."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_123",
+          "content": "ok"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_124",
+          "name": "Edit",
+          "input": {
+            "description": "vercel deploy --prod: both services built; deployment READY."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_124",
+          "content": "ok"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_125",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: Page 200 with title 'FINN"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_125",
+          "content": "Page 200 with title 'FINN: Portfolio Filings & Stock Research'; canonical https://finn-sandy.vercel.app/."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_126",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: CSP, X-Frame-Options and nosniff present on the static page; sw.js served no-cache."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_126",
+          "content": "CSP, X-Frame-Options and nosniff present on the static page; sw.js served no-cache."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_127",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: /api/access reports a code is required; /api/meta 401 without it, 200 with it."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_127",
+          "content": "/api/access reports a code is required; /api/meta 401 without it, 200 with it."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_128",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: robots.txt and sitemap.xml point at the production domain."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_128",
+          "content": "robots.txt and sitemap.xml point at the production domain."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_129",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: Market data from Yahoo Finance; 7-day digest from the NSE feed (9 items) in 1.1 s; DIXON research from Screener (8 quarters, 6 concalls) in 0.3 s."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_129",
+          "content": "Market data from Yahoo Finance; 7-day digest from the NSE feed (9 items) in 1.1 s; DIXON research from Screener (8 quarters, 6 concalls) in 0.3 s."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_130",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: Model gateway"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_130",
+          "content": "Model gateway: Ask on DIXON answered in 4.7 s, citing the Aug 2026 call p8 and the Nov 2026 call p18."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_131",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: Lock screen renders on the live site at phone width."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_131",
+          "content": "Lock screen renders on the live site at phone width."
+        },
+        {
+          "type": "text",
+          "text": "Checked:\n- Page 200 with title 'FINN: Portfolio Filings & Stock Research'; canonical https://finn-sandy.vercel.app/.\n- CSP, X-Frame-Options and nosniff present on the static page; sw.js served no-cache.\n- /api/access reports a code is required; /api/meta 401 without it, 200 with it.\n- robots.txt and sitemap.xml point at the production domain.\n- Market data from Yahoo Finance; 7-day digest from the NSE feed (9 items) in 1.1 s; DIXON research from Screener (8 quarters, 6 concalls) in 0.3 s.\n- Model gateway: Ask on DIXON answered in 4.7 s, citing the Aug 2026 call p8 and the Nov 2026 call p18.\n- Lock screen renders on the live site at phone width."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_132",
           "name": "Bash",
           "input": {
             "description": "Frontend production build"
@@ -1979,13 +2334,13 @@
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_109",
+          "tool_use_id": "toolu_132",
           "content": "vite build: about 186 kB JS (about 60 kB gzipped), 0 errors",
           "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_110",
+          "id": "toolu_133",
           "name": "Bash",
           "input": {
             "description": "Server syntax check"
@@ -1993,13 +2348,13 @@
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_110",
+          "tool_use_id": "toolu_133",
           "content": "node --check passes on every changed server file",
           "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_111",
+          "id": "toolu_134",
           "name": "Bash",
           "input": {
             "description": "Dependency audit"
@@ -2007,13 +2362,13 @@
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_111",
+          "tool_use_id": "toolu_134",
           "content": "npm audit --omit=dev: 0 vulnerabilities (backend and frontend)",
           "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_112",
+          "id": "toolu_135",
           "name": "Bash",
           "input": {
             "description": "Secret scan of git history"
@@ -2021,41 +2376,27 @@
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_112",
-          "content": "API key and access code found in no commit; .env and data files untracked",
+          "tool_use_id": "toolu_135",
+          "content": "API key and access code found in no commit; .env, .env.local and .vercel untracked",
           "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_113",
+          "id": "toolu_136",
           "name": "Bash",
           "input": {
-            "description": "Security headers"
+            "description": "Function-mode simulation (VERCEL=1)"
           }
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_113",
-          "content": "CSP, X-Frame-Options, nosniff, referrer and permissions policies present on /",
+          "tool_use_id": "toolu_136",
+          "content": "app exported, no listener, gate and routes respond",
           "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_114",
-          "name": "Bash",
-          "input": {
-            "description": "Access gate"
-          }
-        },
-        {
-          "type": "tool_result",
-          "tool_use_id": "toolu_114",
-          "content": "401 without code, 200 with code, 429 after 10 wrong codes",
-          "status": "done"
-        },
-        {
-          "type": "tool_use",
-          "id": "toolu_115",
+          "id": "toolu_137",
           "name": "Bash",
           "input": {
             "description": "Push to GitHub"
@@ -2063,69 +2404,125 @@
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_115",
+          "tool_use_id": "toolu_137",
           "content": "main on github.com/rohit-541/FINN",
           "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_116",
+          "id": "toolu_138",
           "name": "Bash",
           "input": {
-            "description": "Create web service on the host from the GitHub repo"
+            "description": "vercel whoami"
           }
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_116",
-          "content": "pending on host. Verify: Build log ends without errors",
-          "status": "pending"
+          "tool_use_id": "toolu_138",
+          "content": "logged in as rohit-541 (CLI 65.8.0)",
+          "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_117",
+          "id": "toolu_139",
           "name": "Bash",
           "input": {
-            "description": "Set environment variables on the host"
+            "description": "vercel link --project finn"
           }
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_117",
-          "content": "pending on host. Verify: Startup log shows 'model: glm' and no ACCESS_CODE warning",
-          "status": "pending"
+          "tool_use_id": "toolu_139",
+          "content": "project created, GitHub repository connected",
+          "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_118",
+          "id": "toolu_140",
           "name": "Bash",
           "input": {
-            "description": "Attach persistent disk and set DATA_DIR (or set MONGODB_URI)"
+            "description": "vercel env add (production)"
           }
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_118",
-          "content": "pending on host. Verify: Filings history survives a restart",
-          "status": "pending"
+          "tool_use_id": "toolu_140",
+          "content": "ACCESS_CODE, GLM_API_KEY, GLM_BASE_URL, GLM_MODEL set, values hidden",
+          "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_119",
+          "id": "toolu_141",
           "name": "Bash",
           "input": {
-            "description": "Open the HTTPS URL"
+            "description": "vercel deploy --prod"
           }
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_119",
-          "content": "pending on host. Verify: Lock screen appears; unlock with the code; Brief loads",
+          "tool_use_id": "toolu_141",
+          "content": "READY; production URL https://finn-sandy.vercel.app",
+          "status": "done"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_142",
+          "name": "Bash",
+          "input": {
+            "description": "Live HTTP checks"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_142",
+          "content": "page 200, security headers, SEO files, access gate 401/200",
+          "status": "done"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_143",
+          "name": "Bash",
+          "input": {
+            "description": "Live data sources"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_143",
+          "content": "Yahoo Finance, NSE feed (9 items), Screener (DIXON) all answer from Vercel",
+          "status": "done"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_144",
+          "name": "Bash",
+          "input": {
+            "description": "Live model call"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_144",
+          "content": "Ask on DIXON in 4.7 s with two page-cited sources",
+          "status": "done"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_145",
+          "name": "Bash",
+          "input": {
+            "description": "Add MONGODB_URI for persistent storage"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_145",
+          "content": "pending on host. Verify: /api/meta reports store 'mongo'; filings history survives new instances",
           "status": "pending"
         },
         {
           "type": "tool_use",
-          "id": "toolu_120",
+          "id": "toolu_146",
           "name": "Bash",
           "input": {
             "description": "Install as an app on a phone"
@@ -2133,41 +2530,27 @@
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_120",
-          "content": "pending on host. Verify: Install prompt (Android) or Add to Home Screen (iPhone) works over HTTPS",
+          "tool_use_id": "toolu_146",
+          "content": "pending on host. Verify: Install prompt (Android) or Add to Home Screen (iPhone) from https://finn-sandy.vercel.app",
           "status": "pending"
         },
         {
           "type": "tool_use",
-          "id": "toolu_121",
+          "id": "toolu_147",
           "name": "Bash",
           "input": {
-            "description": "Smoke-test the model path"
+            "description": "Optional custom domain and SITE_URL"
           }
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_121",
-          "content": "pending on host. Verify: Ask on one company returns cited quotes; Rules shows tokens spent",
-          "status": "pending"
-        },
-        {
-          "type": "tool_use",
-          "id": "toolu_122",
-          "name": "Bash",
-          "input": {
-            "description": "Check limits in production"
-          }
-        },
-        {
-          "type": "tool_result",
-          "tool_use_id": "toolu_122",
-          "content": "pending on host. Verify: With TRUST_PROXY=1, a burst of wrong codes from one device returns 429",
+          "tool_use_id": "toolu_147",
+          "content": "pending on host. Verify: Canonical, robots.txt and sitemap show the custom domain",
           "status": "pending"
         },
         {
           "type": "text",
-          "text": "Deployment log:\n- [x] Frontend production build: vite build: about 186 kB JS (about 60 kB gzipped), 0 errors\n- [x] Server syntax check: node --check passes on every changed server file\n- [x] Dependency audit: npm audit --omit=dev: 0 vulnerabilities (backend and frontend)\n- [x] Secret scan of git history: API key and access code found in no commit; .env and data files untracked\n- [x] Security headers: CSP, X-Frame-Options, nosniff, referrer and permissions policies present on /\n- [x] Access gate: 401 without code, 200 with code, 429 after 10 wrong codes\n- [x] Push to GitHub: main on github.com/rohit-541/FINN\n- [ ] Create web service on the host from the GitHub repo: verify build log ends without errors\n- [ ] Set environment variables on the host: verify startup log shows 'model: glm' and no ACCESS_CODE warning\n- [ ] Attach persistent disk and set DATA_DIR (or set MONGODB_URI): verify filings history survives a restart\n- [ ] Open the HTTPS URL: verify lock screen appears; unlock with the code; Brief loads\n- [ ] Install as an app on a phone: verify install prompt (Android) or Add to Home Screen (iPhone) works over HTTPS\n- [ ] Smoke-test the model path: verify ask on one company returns cited quotes; Rules shows tokens spent\n- [ ] Check limits in production: verify with TRUST_PROXY=1, a burst of wrong codes from one device returns 429"
+          "text": "Deployment log:\n- [x] Frontend production build: vite build: about 186 kB JS (about 60 kB gzipped), 0 errors\n- [x] Server syntax check: node --check passes on every changed server file\n- [x] Dependency audit: npm audit --omit=dev: 0 vulnerabilities (backend and frontend)\n- [x] Secret scan of git history: API key and access code found in no commit; .env, .env.local and .vercel untracked\n- [x] Function-mode simulation (VERCEL=1): app exported, no listener, gate and routes respond\n- [x] Push to GitHub: main on github.com/rohit-541/FINN\n- [x] vercel whoami: logged in as rohit-541 (CLI 65.8.0)\n- [x] vercel link --project finn: project created, GitHub repository connected\n- [x] vercel env add (production): ACCESS_CODE, GLM_API_KEY, GLM_BASE_URL, GLM_MODEL set, values hidden\n- [x] vercel deploy --prod: READY; production URL https://finn-sandy.vercel.app\n- [x] Live HTTP checks: page 200, security headers, SEO files, access gate 401/200\n- [x] Live data sources: Yahoo Finance, NSE feed (9 items), Screener (DIXON) all answer from Vercel\n- [x] Live model call: Ask on DIXON in 4.7 s with two page-cited sources\n- [ ] Add MONGODB_URI for persistent storage: verify /api/meta reports store 'mongo'; filings history survives new instances\n- [ ] Install as an app on a phone: verify install prompt (Android) or Add to Home Screen (iPhone) from https://finn-sandy.vercel.app\n- [ ] Optional custom domain and SITE_URL: verify canonical, robots.txt and sitemap show the custom domain"
         }
       ]
     }

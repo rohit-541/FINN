@@ -158,3 +158,6 @@ backend/data/
 # Unrelated files kept in this folder
 .cph/
 Coloring_Dominoes.cpp
+# Vercel CLI project link
+.vercel
+.env*

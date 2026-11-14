@@ -2,6 +2,8 @@
 
 A mobile-first investment agent for Indian equities (NSE and BSE).
 
+**Live:** <https://finn-sandy.vercel.app> (private: an access code is required).
+
 FINN does two jobs:
 
 - **Push.** It reads every exchange filing across a portfolio and surfaces the few that matter. Each results filing gets a first cut of the numbers, and each management change gets a short bio.
@@ -164,7 +166,7 @@ Serve it over HTTPS. Browsers allow installing the app and showing notifications
 
 ### Vercel
 
-[`vercel.json`](vercel.json) deploys FINN as one Vercel project with two services and one domain.
+[`vercel.json`](vercel.json) deploys FINN as one Vercel project with two services and one domain. Production runs at <https://finn-sandy.vercel.app>.
 
 | Service | Root | Runs as | Public paths |
 |---|---|---|---|
