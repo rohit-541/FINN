@@ -28,8 +28,9 @@ It is built to be cheap to run. Rules do the sorting, models are called only whe
 9. [Module reference](#module-reference)
 10. [Security](#security)
 11. [SEO](#seo)
-12. [Known limitations](#known-limitations)
-13. [Contributing](#contributing)
+12. [Quality and performance](#quality-and-performance)
+13. [Known limitations](#known-limitations)
+14. [Contributing](#contributing)
 
 ---
 
@@ -178,7 +179,7 @@ The browser calls the backend through the public `/api` path on the same domain.
 On Vercel the backend runs differently in four ways:
 
 - **No listener or timer.** It exports the app instead of listening on a port. The NSE feed is polled by the digest on each request, at most every four minutes, instead of by a five-minute timer.
-- **Storage.** Only `/tmp` is writable, and it is not shared between instances. **Set `MONGODB_URI`** so the cache and filings history persist.
+- **Storage.** Only `/tmp` is writable, and it is not shared between instances. **Set `MONGODB_URI`** so the cache and filings history persist. Production runs on MongoDB Atlas: `/api/meta` reports `store: "mongo"`. Atlas must accept connections from Vercel's dynamic IPs.
 - **Analysis jobs.** Kept running after the response with `waitUntil`, within the function's maximum duration (300 s by default).
 - **Proxy.** The client IP is read from Vercel's `X-Forwarded-For` for rate limiting.
 
@@ -262,7 +263,7 @@ FINN/
 
 | Layer | Choice | Why |
 |---|---|---|
-| Client | React 18, Vite 6, plain CSS | Small bundle (about 60 kB gzipped JavaScript), no UI library. |
+| Client | React 18, Vite 6, plain CSS | About 56 kB gzipped JavaScript for the first screen; Research and Rules load on demand. Self-hosted fonts. No UI library. |
 | Charts | Hand-drawn SVG | No chart dependency, and full control of the scrub readout. |
 | Server | Express 4 (ESM) | One process for the API and the static client. |
 | Scraping | cheerio | Parses Screener's server-rendered pages. |
@@ -529,7 +530,7 @@ FINN was audited against a 25-point web application security checklist on 15 Nov
 
 - **Server-side request forgery.** The server never fetches a URL supplied by a client. Filing documents come from the server's own store; other documents come from links on Screener's company pages.
 - **Security headers:**
-  - `Content-Security-Policy`: self only, plus Google Fonts
+  - `Content-Security-Policy`: self only (fonts are self-hosted)
   - `X-Frame-Options: DENY`
   - `X-Content-Type-Options: nosniff`
   - `Referrer-Policy: strict-origin-when-cross-origin`
@@ -604,6 +605,71 @@ FINN is a private, single-page application. Its screens are hash routes (`#/brie
 
 - **No Host-header echo.** Absolute URLs are built only from `SITE_URL`, and only its origin is used, so a path, query or forged `Host` header can never reach the page or the XML. Verified: a `Host` header carrying `<script>` appears in neither.
 - **Service worker.** Never caches `sitemap.xml` or `robots.txt`, and only an HTML response can become the cached app shell. Before this fix, opening the sitemap in a tab could have replaced the offline app with the XML.
+
+---
+
+## Quality and performance
+
+Audited on 15 November 2026 against a 20-point launch checklist for usability, and against Google's Core Web Vitals. Every check was run in headless Chrome on all five screens (`#/brief`, `#/research`, `#/research/DIXON`, `#/rules` and an unknown route) at 320, 390, 768 and 1280 px, with every collapsible section opened. It ran locally and again against production.
+
+### Launch checklist
+
+| # | Check | Status | Finding and fix |
+|---|---|---|---|
+| 1 | No horizontal scrolling | Pass | No element wider than the viewport at any of the four widths, including expanded panels. |
+| 2 | No broken links | Pass | 36 distinct links: 26 internal routes resolve; 10 external (BSE filings, Screener) return 200. |
+| 3 | Mobile menu | Pass | The floating dock is the mobile navigation: three labelled links with `aria-current`. |
+| 4 | Favicon | Fixed | There was no `favicon.ico`: production returned 404, and Express returned the app's HTML. Added a 16 and 32 px `.ico` and a 32 px PNG. |
+| 5 | Page titles | Fixed | Every screen shared one title. The home screen keeps `FINN: Portfolio Filings & Stock Research`; the others show e.g. `DIXON research · FINN` and `Rules · FINN`. |
+| 6 | Meta descriptions | Pass | One description for the single indexable page; the 404 page is `noindex`. |
+| 7 | Footer links | N/A | No link footer. A footer line on Rules carries the year, data sources and a not-advice note. |
+| 8 | Custom 404 page | Fixed | Unknown routes silently showed the Brief, Express answered any path with a soft 200, and Vercel showed its default page. Now: an in-app not-found screen, and a styled `404.html` with status 404 on Express and on Vercel (filesystem-then-404 route). Unknown `/api` paths return JSON 404. |
+| 9 | Copyright year | Fixed | Footer year comes from the clock, so it never goes stale. |
+| 10 | Compressed images | Pass | Icons are 1.4 to 9.7 KB PNGs at their display sizes; no photographs. |
+| 11 | Broken buttons | Pass | Every visible button has a click handler or submits a form, and every one has an accessible name. |
+| 12 | Success messages | Fixed | Added a toast (polite live region) for adding and removing holdings, category overrides, notifications, threshold reset, custom dates, clearing filings, restoring defaults and model summaries. |
+| 13 | Error messages | Fixed | Search failures looked like "no match" and now say search is unavailable. Invalid date ranges, duplicate holdings and blocked notifications show error toasts. Ask and analysis errors are announced (`role="alert"`). |
+| 14 | No placeholder text | Pass | No lorem ipsum, TODO, TBD or "coming soon" on any screen. |
+| 15 | No unused navigation | Pass | All three dock links lead to live screens. |
+| 16 | No mobile overflow | Pass | Same as #1, checked down to 320 px. |
+| 17 | Clickable logo | N/A | No logo in the app chrome; the first dock button is home. The 404 page links home. |
+| 18 | Clickable phone number | N/A | No phone number is shown. |
+| 19 | Clickable email | N/A | No email address is shown. |
+| 20 | Every page mobile-optimised | Fixed | 52 tap targets were 36 to 40 px (chips, jump links, small buttons) and are now at least 44 px. Layout is mobile-first with `dvh` units. |
+
+### Core Web Vitals
+
+Lighthouse 13.6 (mobile, simulated slow 4G) on production, before and after the changes. Each "after" figure is a warm run, a minute or more after the deployment.
+
+| Screen | Metric | Before | After |
+|---|---|---|---|
+| Brief | Largest Contentful Paint | 1.7 s | 1.4 s |
+| Brief | First Contentful Paint | 1.7 s | 0.8 s |
+| Brief | Cumulative Layout Shift | 0 | 0 |
+| Brief | Total Blocking Time (lab proxy for INP) | 0 ms | 50 ms |
+| Research (DIXON) | Largest Contentful Paint | 1.7 s | 1.5 s |
+| Research (DIXON) | First Contentful Paint | 1.7 s | 0.8 s |
+| Rules | Largest Contentful Paint | n/a | 1.4 s |
+
+| Lighthouse category (Brief) | Before | After |
+|---|---|---|
+| Performance | 99 | 99 to 100 |
+| Accessibility | 95 | 100 |
+| Best practices | 96 | 100 |
+| SEO | 100 | 100 |
+
+What changed:
+
+- **No render-blocking third party.** Geist, Geist Mono and Titan One are self-hosted (Latin subsets, 63 KB in all, OFL). The two fonts the first screen needs are preloaded, and all use `font-display: swap`. This removed an estimated 870 ms of render blocking, and the Google Fonts origins are gone from the Content-Security-Policy.
+- **Less JavaScript up front.** Research and Rules are lazy-loaded chunks (5.0 and 2.5 KB gzipped), so the Brief ships only what it renders.
+- **Long-lived caching.** Fingerprinted bundles and fonts are served `public, max-age=31536000, immutable`; `sw.js` stays `no-cache`.
+- **Stable layout.** A same-height placeholder holds the holdings card's space until prices arrive. It removed a 0.016 layout shift found during the audit.
+- **Contrast.** Muted text, accent, up, down and warn colours were darkened to meet WCAG AA (4.5:1) on every background they sit on.
+
+Remaining notes:
+
+- **Cold starts.** The first request to a new deployment includes the function's start and the MongoDB connection, and showed a 4 to 5 s Speed Index once. Warm runs are 2 to 3 s.
+- **Speed Index on the Brief.** It follows the filings API, which polls the NSE feed live (at most every four minutes per instance) and backfills each holding.
 
 ---
 

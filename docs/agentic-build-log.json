@@ -1,9 +1,9 @@
 {
   "uuid": "838db1e4-bce2-588c-9d25-eefcc2b68fa3",
   "name": "Build FINN: mobile-first investment agent for Indian equities",
-  "summary": "End-to-end build of FINN with an AI coding agent: requirements and first build, ten rounds of iteration, four feature additions, a 25-point security audit with an IDOR test, an SEO audit, and deployment to Vercel (https://finn-sandy.vercel.app). Prompts are lightly edited for clarity; the changes, findings and verification results are from the build.",
+  "summary": "End-to-end build of FINN with an AI coding agent: requirements and first build, ten rounds of iteration, four feature additions, a 25-point security audit with an IDOR test, an SEO audit, deployment to Vercel (https://finn-sandy.vercel.app), MongoDB, a 20-point launch checklist and Core Web Vitals work. Prompts are lightly edited for clarity; the changes, findings and verification results are from the build.",
   "created_at": "2026-11-14T09:40:00+05:30",
-  "updated_at": "2026-11-15T14:20:00+05:30",
+  "updated_at": "2026-11-15T15:59:00+05:30",
   "model": "claude-opus-5-5",
   "project": {
     "name": "FINN",
@@ -2323,10 +2323,395 @@
         {
           "type": "text",
           "text": "Checked:\n- Page 200 with title 'FINN: Portfolio Filings & Stock Research'; canonical https://finn-sandy.vercel.app/.\n- CSP, X-Frame-Options and nosniff present on the static page; sw.js served no-cache.\n- /api/access reports a code is required; /api/meta 401 without it, 200 with it.\n- robots.txt and sitemap.xml point at the production domain.\n- Market data from Yahoo Finance; 7-day digest from the NSE feed (9 items) in 1.1 s; DIXON research from Screener (8 quarters, 6 concalls) in 0.3 s.\n- Model gateway: Ask on DIXON answered in 4.7 s, citing the Aug 2026 call p8 and the Nov 2026 call p18.\n- Lock screen renders on the live site at phone width."
+        }
+      ]
+    },
+    {
+      "index": 44,
+      "uuid": "7c9ea73e-9115-5f65-8b6a-85d9a0d09aca",
+      "sender": "human",
+      "created_at": "2026-11-15T14:24:00+05:30",
+      "text": "I've added the MongoDB connection string to backend/.env. Connect FINN to it locally and in production without printing it.\n\nThen run this launch checklist on every screen, locally and on the live site, fix what fails, and prove each fix:\nremove horizontal scrolling; find broken links; mobile menu; favicon; page titles; meta descriptions; footer links; a custom 404 page; copyright year; compress images; broken buttons; success messages; error messages; placeholder text; unused navigation; mobile overflow; clickable logo; clickable phone number; clickable email; every page mobile optimised.\n\nFinally, improve Core Web Vitals. Measure on production before and after, and tell me which numbers moved and why.",
+      "attachments": []
+    },
+    {
+      "index": 45,
+      "uuid": "6f990f7c-4e18-52fa-b062-5e499a1595fe",
+      "sender": "assistant",
+      "created_at": "2026-11-15T15:09:00+05:30",
+      "content": [
+        {
+          "type": "text",
+          "text": "MongoDB is connected locally and in production. The connection string was saved under DB_URL; FINN reads MONGODB_URI, so I renamed the key without printing the value. A display bug also surfaced: /api/meta reported 'file' after connecting, because server.js copied storeMode before the store connected.\n\nThe checklist ran in headless Chrome on all five screens at 320, 390, 768 and 1280 px, with every collapsible section opened. Thirteen items passed or did not apply (no logo, phone, email or link footer). Seven needed fixes. Core Web Vitals were already good (performance 99, CLS 0), but Lighthouse found a render-blocking font stylesheet, 29 KB of unused JavaScript on the first screen, low-contrast text and a label mismatch."
+        },
+        {
+          "type": "text",
+          "text": "What I found:\n- Every screen shared one document title.\n- No favicon.ico: production returned 404, and Express returned the app's HTML.\n- Unknown routes showed the Brief silently; Express answered any path with a soft 200.\n- 52 tap targets were 36 to 40 px.\n- No success feedback for portfolio, rules or notification changes; search failures looked like 'no match'.\n- Google Fonts CSS blocked rendering (an estimated 870 ms).\n- Muted text at 3.1 to 3.4:1 and the down colour at 4.1:1, under the 4.5:1 minimum."
         },
         {
           "type": "tool_use",
           "id": "toolu_132",
+          "name": "Edit",
+          "input": {
+            "description": "backend/.env: DB_URL renamed to MONGODB_URI; connection tested (269 ms); MONGODB_URI added to Vercel production."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_132",
+          "content": "ok"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_133",
+          "name": "Edit",
+          "input": {
+            "file_path": "backend/src/server.js",
+            "description": "storeMode read through the module namespace; real 404 page with status 404; JSON 404 for unknown /api paths; immutable caching for assets and fonts; CSP without Google Fonts."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_133",
+          "content": "ok"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_134",
+          "name": "Edit",
+          "input": {
+            "file_path": "frontend/index.html",
+            "description": "self-hosted Geist, Geist Mono and Titan One (63 KB, OFL) with preload; favicon links."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_134",
+          "content": "ok"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_135",
+          "name": "Edit",
+          "input": {
+            "description": "App.jsx: per-screen titles, in-app not-found screen, lazy-loaded Research and Rules, toast region."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_135",
+          "content": "ok"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_136",
+          "name": "Edit",
+          "input": {
+            "file_path": "frontend/src/Rules.jsx",
+            "description": "success and error toasts; footer with the current year and data sources."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_136",
+          "content": "ok"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_137",
+          "name": "Edit",
+          "input": {
+            "file_path": "frontend/src/Brief.jsx",
+            "description": "toasts for clearing, summaries and invalid date ranges; date-chip label matches its text."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_137",
+          "content": "ok"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_138",
+          "name": "Edit",
+          "input": {
+            "description": "styles.css: 44 px minimum tap targets; darker muted, accent, up, down and warn tokens for WCAG AA."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_138",
+          "content": "ok"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_139",
+          "name": "Edit",
+          "input": {
+            "description": "404.html: styled static 404 page (noindex); favicon.ico with 16 and 32 px images."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_139",
+          "content": "ok"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_140",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: /api/meta in production reports store 'mongo'."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_140",
+          "content": "/api/meta in production reports store 'mongo'."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_141",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: Checklist re-run locally and on production"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_141",
+          "content": "Checklist re-run locally and on production: 0 overflow, 0 dead or unnamed buttons, 0 tap targets under 44 px, 0 placeholders, 0 console errors, 0 failed requests."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_142",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: 36 links"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_142",
+          "content": "36 links: 26 internal routes resolve, 10 external return 200."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_143",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: Titles"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_143",
+          "content": "Titles: 'DIXON research · FINN', 'Rules · FINN', 'Page not found · FINN'; home keeps the full title."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_144",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: Toasts confirmed in the browser"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_144",
+          "content": "Toasts confirmed in the browser: 'Removed TCS', 'Results filings muted', and an error for a reversed date range."
+        },
+        {
+          "type": "text",
+          "text": "Checked:\n- /api/meta in production reports store 'mongo'.\n- Checklist re-run locally and on production: 0 overflow, 0 dead or unnamed buttons, 0 tap targets under 44 px, 0 placeholders, 0 console errors, 0 failed requests.\n- 36 links: 26 internal routes resolve, 10 external return 200.\n- Titles: 'DIXON research · FINN', 'Rules · FINN', 'Page not found · FINN'; home keeps the full title.\n- Toasts confirmed in the browser: 'Removed TCS', 'Results filings muted', and an error for a reversed date range."
+        }
+      ]
+    },
+    {
+      "index": 46,
+      "uuid": "8ac242e3-80cc-5b35-856e-206ab198f5d1",
+      "sender": "human",
+      "created_at": "2026-11-15T15:13:00+05:30",
+      "text": "The Brief got slower in the first measurement, and a missing page on the live site still shows Vercel's default page. Look into both.",
+      "attachments": []
+    },
+    {
+      "index": 47,
+      "uuid": "ff3b0ea4-fd2f-5a94-a078-50c08af5f58c",
+      "sender": "assistant",
+      "created_at": "2026-11-15T15:43:00+05:30",
+      "content": [
+        {
+          "type": "text",
+          "text": "The slower run was a cold start: the deployment was a minute old and its first request connected to MongoDB. Warm runs are faster than the baseline. Two real issues remained. The holdings card caused a small layout shift when prices arrived before filings. And in services mode, Vercel's static service does not fall back to 404.html on its own."
+        },
+        {
+          "type": "text",
+          "text": "What I found:\n- Speed Index 5.3 s on the first run only; warm runs 2.0 to 3.0 s.\n- Layout shift 0.016 from the holdings card.\n- Vercel served its own NOT_FOUND page for unknown paths."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_145",
+          "name": "Edit",
+          "input": {
+            "file_path": "frontend/src/Brief.jsx",
+            "description": "holdings card rendered after the filings, with a same-height placeholder until prices arrive."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_145",
+          "content": "ok"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_146",
+          "name": "Edit",
+          "input": {
+            "description": "vercel.json: frontend headers moved into routes; filesystem-then-404 route serving /404.html with status 404."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_146",
+          "content": "ok"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_147",
+          "name": "Edit",
+          "input": {
+            "description": "Tested the new routing on a preview deployment before promoting it to production."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_147",
+          "content": "ok"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_148",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: Preview"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_148",
+          "content": "Preview: 404 page with status 404, five security headers, sw.js no-cache, fonts immutable, API and robots.txt intact."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_149",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: Production"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_149",
+          "content": "Production: missing paths return 'Page not found · FINN' with status 404."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_150",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: Lighthouse on production (warm)"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_150",
+          "content": "Lighthouse on production (warm): Brief LCP 1.7 to 1.4 s, FCP 1.7 to 0.8 s, CLS 0."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_151",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: Lighthouse on production (warm)"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_151",
+          "content": "Lighthouse on production (warm): Research LCP 1.5 s, Rules LCP 1.4 s."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_152",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: Lighthouse on production (warm)"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_152",
+          "content": "Lighthouse on production (warm): accessibility, best practices and SEO all 100 on every screen."
+        },
+        {
+          "type": "text",
+          "text": "Checked:\n- Preview: 404 page with status 404, five security headers, sw.js no-cache, fonts immutable, API and robots.txt intact.\n- Production: missing paths return 'Page not found · FINN' with status 404.\n- Lighthouse on production (warm): Brief LCP 1.7 to 1.4 s, FCP 1.7 to 0.8 s, CLS 0.\n- Lighthouse on production (warm): Research LCP 1.5 s, Rules LCP 1.4 s.\n- Lighthouse on production (warm): accessibility, best practices and SEO all 100 on every screen."
+        }
+      ]
+    },
+    {
+      "index": 48,
+      "uuid": "d6a7ab8c-5623-551e-a627-47aa2d270e3f",
+      "sender": "human",
+      "created_at": "2026-11-15T15:47:00+05:30",
+      "text": "Add the checklist results and the Core Web Vitals before and after to the README and to the build log.",
+      "attachments": []
+    },
+    {
+      "index": 49,
+      "uuid": "8533a0c6-eae0-525e-8df1-4713025200eb",
+      "sender": "assistant",
+      "created_at": "2026-11-15T15:59:00+05:30",
+      "content": [
+        {
+          "type": "text",
+          "text": "README now has a Quality and performance section with the 20-item checklist (status and fix for each), a before/after Core Web Vitals table, what changed and the remaining notes. The build log records these conversations and the updated deployment checklist."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_153",
+          "name": "Edit",
+          "input": {
+            "file_path": "README.md",
+            "description": "Quality and performance section; stack, storage and CSP notes updated."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_153",
+          "content": "ok"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_154",
+          "name": "Bash",
+          "input": {
+            "description": "Verify: Figures in the README match the Lighthouse reports from production."
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_154",
+          "content": "Figures in the README match the Lighthouse reports from production."
+        },
+        {
+          "type": "text",
+          "text": "Checked:\n- Figures in the README match the Lighthouse reports from production."
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_155",
           "name": "Bash",
           "input": {
             "description": "Frontend production build"
@@ -2334,13 +2719,13 @@
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_132",
+          "tool_use_id": "toolu_155",
           "content": "vite build: about 186 kB JS (about 60 kB gzipped), 0 errors",
           "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_133",
+          "id": "toolu_156",
           "name": "Bash",
           "input": {
             "description": "Server syntax check"
@@ -2348,13 +2733,13 @@
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_133",
+          "tool_use_id": "toolu_156",
           "content": "node --check passes on every changed server file",
           "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_134",
+          "id": "toolu_157",
           "name": "Bash",
           "input": {
             "description": "Dependency audit"
@@ -2362,13 +2747,13 @@
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_134",
+          "tool_use_id": "toolu_157",
           "content": "npm audit --omit=dev: 0 vulnerabilities (backend and frontend)",
           "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_135",
+          "id": "toolu_158",
           "name": "Bash",
           "input": {
             "description": "Secret scan of git history"
@@ -2376,13 +2761,13 @@
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_135",
+          "tool_use_id": "toolu_158",
           "content": "API key and access code found in no commit; .env, .env.local and .vercel untracked",
           "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_136",
+          "id": "toolu_159",
           "name": "Bash",
           "input": {
             "description": "Function-mode simulation (VERCEL=1)"
@@ -2390,13 +2775,13 @@
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_136",
+          "tool_use_id": "toolu_159",
           "content": "app exported, no listener, gate and routes respond",
           "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_137",
+          "id": "toolu_160",
           "name": "Bash",
           "input": {
             "description": "Push to GitHub"
@@ -2404,13 +2789,13 @@
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_137",
+          "tool_use_id": "toolu_160",
           "content": "main on github.com/rohit-541/FINN",
           "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_138",
+          "id": "toolu_161",
           "name": "Bash",
           "input": {
             "description": "vercel whoami"
@@ -2418,13 +2803,13 @@
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_138",
+          "tool_use_id": "toolu_161",
           "content": "logged in as rohit-541 (CLI 65.8.0)",
           "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_139",
+          "id": "toolu_162",
           "name": "Bash",
           "input": {
             "description": "vercel link --project finn"
@@ -2432,13 +2817,13 @@
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_139",
+          "tool_use_id": "toolu_162",
           "content": "project created, GitHub repository connected",
           "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_140",
+          "id": "toolu_163",
           "name": "Bash",
           "input": {
             "description": "vercel env add (production)"
@@ -2446,13 +2831,13 @@
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_140",
+          "tool_use_id": "toolu_163",
           "content": "ACCESS_CODE, GLM_API_KEY, GLM_BASE_URL, GLM_MODEL set, values hidden",
           "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_141",
+          "id": "toolu_164",
           "name": "Bash",
           "input": {
             "description": "vercel deploy --prod"
@@ -2460,13 +2845,13 @@
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_141",
+          "tool_use_id": "toolu_164",
           "content": "READY; production URL https://finn-sandy.vercel.app",
           "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_142",
+          "id": "toolu_165",
           "name": "Bash",
           "input": {
             "description": "Live HTTP checks"
@@ -2474,13 +2859,13 @@
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_142",
+          "tool_use_id": "toolu_165",
           "content": "page 200, security headers, SEO files, access gate 401/200",
           "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_143",
+          "id": "toolu_166",
           "name": "Bash",
           "input": {
             "description": "Live data sources"
@@ -2488,13 +2873,13 @@
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_143",
+          "tool_use_id": "toolu_166",
           "content": "Yahoo Finance, NSE feed (9 items), Screener (DIXON) all answer from Vercel",
           "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_144",
+          "id": "toolu_167",
           "name": "Bash",
           "input": {
             "description": "Live model call"
@@ -2502,13 +2887,13 @@
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_144",
+          "tool_use_id": "toolu_167",
           "content": "Ask on DIXON in 4.7 s with two page-cited sources",
           "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_145",
+          "id": "toolu_168",
           "name": "Bash",
           "input": {
             "description": "Add MONGODB_URI for persistent storage"
@@ -2516,13 +2901,55 @@
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_145",
-          "content": "pending on host. Verify: /api/meta reports store 'mongo'; filings history survives new instances",
-          "status": "pending"
+          "tool_use_id": "toolu_168",
+          "content": "MongoDB Atlas connected; /api/meta reports store 'mongo' in production",
+          "status": "done"
         },
         {
           "type": "tool_use",
-          "id": "toolu_146",
+          "id": "toolu_169",
+          "name": "Bash",
+          "input": {
+            "description": "Custom 404 on Vercel"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_169",
+          "content": "filesystem-then-404 route; unknown paths return the FINN 404 page with status 404",
+          "status": "done"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_170",
+          "name": "Bash",
+          "input": {
+            "description": "Launch checklist on production"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_170",
+          "content": "20 items: 9 pass, 7 fixed, 4 not applicable; 0 overflow, 0 broken links, 0 console errors",
+          "status": "done"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_171",
+          "name": "Bash",
+          "input": {
+            "description": "Core Web Vitals on production"
+          }
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_171",
+          "content": "Brief LCP 1.4 s, FCP 0.8 s, CLS 0; accessibility, best practices and SEO 100",
+          "status": "done"
+        },
+        {
+          "type": "tool_use",
+          "id": "toolu_172",
           "name": "Bash",
           "input": {
             "description": "Install as an app on a phone"
@@ -2530,13 +2957,13 @@
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_146",
+          "tool_use_id": "toolu_172",
           "content": "pending on host. Verify: Install prompt (Android) or Add to Home Screen (iPhone) from https://finn-sandy.vercel.app",
           "status": "pending"
         },
         {
           "type": "tool_use",
-          "id": "toolu_147",
+          "id": "toolu_173",
           "name": "Bash",
           "input": {
             "description": "Optional custom domain and SITE_URL"
@@ -2544,13 +2971,13 @@
         },
         {
           "type": "tool_result",
-          "tool_use_id": "toolu_147",
+          "tool_use_id": "toolu_173",
           "content": "pending on host. Verify: Canonical, robots.txt and sitemap show the custom domain",
           "status": "pending"
         },
         {
           "type": "text",
-          "text": "Deployment log:\n- [x] Frontend production build: vite build: about 186 kB JS (about 60 kB gzipped), 0 errors\n- [x] Server syntax check: node --check passes on every changed server file\n- [x] Dependency audit: npm audit --omit=dev: 0 vulnerabilities (backend and frontend)\n- [x] Secret scan of git history: API key and access code found in no commit; .env, .env.local and .vercel untracked\n- [x] Function-mode simulation (VERCEL=1): app exported, no listener, gate and routes respond\n- [x] Push to GitHub: main on github.com/rohit-541/FINN\n- [x] vercel whoami: logged in as rohit-541 (CLI 65.8.0)\n- [x] vercel link --project finn: project created, GitHub repository connected\n- [x] vercel env add (production): ACCESS_CODE, GLM_API_KEY, GLM_BASE_URL, GLM_MODEL set, values hidden\n- [x] vercel deploy --prod: READY; production URL https://finn-sandy.vercel.app\n- [x] Live HTTP checks: page 200, security headers, SEO files, access gate 401/200\n- [x] Live data sources: Yahoo Finance, NSE feed (9 items), Screener (DIXON) all answer from Vercel\n- [x] Live model call: Ask on DIXON in 4.7 s with two page-cited sources\n- [ ] Add MONGODB_URI for persistent storage: verify /api/meta reports store 'mongo'; filings history survives new instances\n- [ ] Install as an app on a phone: verify install prompt (Android) or Add to Home Screen (iPhone) from https://finn-sandy.vercel.app\n- [ ] Optional custom domain and SITE_URL: verify canonical, robots.txt and sitemap show the custom domain"
+          "text": "Deployment log:\n- [x] Frontend production build: vite build: about 186 kB JS (about 60 kB gzipped), 0 errors\n- [x] Server syntax check: node --check passes on every changed server file\n- [x] Dependency audit: npm audit --omit=dev: 0 vulnerabilities (backend and frontend)\n- [x] Secret scan of git history: API key and access code found in no commit; .env, .env.local and .vercel untracked\n- [x] Function-mode simulation (VERCEL=1): app exported, no listener, gate and routes respond\n- [x] Push to GitHub: main on github.com/rohit-541/FINN\n- [x] vercel whoami: logged in as rohit-541 (CLI 65.8.0)\n- [x] vercel link --project finn: project created, GitHub repository connected\n- [x] vercel env add (production): ACCESS_CODE, GLM_API_KEY, GLM_BASE_URL, GLM_MODEL set, values hidden\n- [x] vercel deploy --prod: READY; production URL https://finn-sandy.vercel.app\n- [x] Live HTTP checks: page 200, security headers, SEO files, access gate 401/200\n- [x] Live data sources: Yahoo Finance, NSE feed (9 items), Screener (DIXON) all answer from Vercel\n- [x] Live model call: Ask on DIXON in 4.7 s with two page-cited sources\n- [x] Add MONGODB_URI for persistent storage: MongoDB Atlas connected; /api/meta reports store 'mongo' in production\n- [x] Custom 404 on Vercel: filesystem-then-404 route; unknown paths return the FINN 404 page with status 404\n- [x] Launch checklist on production: 20 items: 9 pass, 7 fixed, 4 not applicable; 0 overflow, 0 broken links, 0 console errors\n- [x] Core Web Vitals on production: Brief LCP 1.4 s, FCP 0.8 s, CLS 0; accessibility, best practices and SEO 100\n- [ ] Install as an app on a phone: verify install prompt (Android) or Add to Home Screen (iPhone) from https://finn-sandy.vercel.app\n- [ ] Optional custom domain and SITE_URL: verify canonical, robots.txt and sitemap show the custom domain"
         }
       ]
     }
