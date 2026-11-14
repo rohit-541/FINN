@@ -2,7 +2,7 @@
 //   page      -> network first, cached shell when offline
 //   /assets/* -> cache first (Vite fingerprints these, so a cached copy is never stale)
 //   GET /api  -> network first, last good answer when offline, so the brief still opens on a train
-const VERSION = 'finn-v2';
+const VERSION = 'finn-v3';
 const SHELL = ['/', '/manifest.webmanifest', '/icons/icon-192.png'];
 
 self.addEventListener('install', (e) => {
@@ -41,6 +41,8 @@ self.addEventListener('fetch', (e) => {
   if (url.pathname.startsWith('/api/')) {
     // the analysis endpoint reports a running job; a cached "running" would never finish
     if (url.pathname.endsWith('/analysis')) return;
+    // the access check must always ask the server, never answer from cache
+    if (url.pathname === '/api/access') return;
     e.respondWith(fetch(request).then((r) => put(request, r)).catch(() => caches.match(request).then((hit) => hit || Response.error())));
   }
 });

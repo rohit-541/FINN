@@ -2,15 +2,27 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 // ---------- API ----------
 const BASE = import.meta.env.VITE_API_URL || '';
-async function call(path, opts) {
-  const res = await fetch(BASE + path, opts);
+
+// The access code is kept on this device and sent with every API call. A 401 means it is
+// missing, wrong or was changed on the server, so the app returns to its lock screen.
+const CODE_KEY = 'finn.code';
+export const accessCode = {
+  get: () => { try { return localStorage.getItem(CODE_KEY) || ''; } catch { return ''; } },
+  set: (c) => { try { if (c) localStorage.setItem(CODE_KEY, c); else localStorage.removeItem(CODE_KEY); } catch { /* private mode */ } },
+};
+
+async function call(path, opts = {}) {
+  const res = await fetch(BASE + path, { ...opts, headers: { ...opts.headers, 'X-Finn-Code': accessCode.get() } });
   const body = await res.json().catch(() => ({}));
+  if (res.status === 401 && path !== '/api/unlock') window.dispatchEvent(new Event('finn-locked'));
   if (!res.ok) throw new Error(body.error || `Request failed (${res.status})`);
   return body;
 }
 const post = (path, body) => call(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
 export const api = {
+  access: () => call('/api/access'),
+  unlock: (code) => post('/api/unlock', { code }),
   meta: () => call('/api/meta'),
   digest: (tickers, from, to) => call(`/api/digest?tickers=${tickers.join(',')}&from=${from}&to=${to}`),
   market: (tickers) => call(`/api/market?tickers=${tickers.join(',')}`),

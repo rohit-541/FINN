@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, useAsync, useLocal, DEFAULT_RULES } from './lib.js';
+import { api, useAsync, useLocal, DEFAULT_RULES, accessCode } from './lib.js';
 import Brief from './Brief.jsx';
 import Research from './Research.jsx';
 import Rules from './Rules.jsx';
@@ -15,7 +15,51 @@ const TABS = [
   { id: 'rules', label: 'Rules', d: 'M4 7h9M17 7h3M4 17h3M11 17h9M15 4.5v5M9 14.5v5' },
 ];
 
+function Lock({ onOpen }) {
+  const [code, setCode] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true); setError('');
+    try {
+      await api.unlock(code.trim());
+      accessCode.set(code.trim());
+      onOpen();
+    } catch (err) { setError(err.message); } finally { setBusy(false); }
+  };
+  return (
+    <main className="lock">
+      <form className="lock-card" onSubmit={submit}>
+        <img src="/icons/icon-192.png" alt="" width="64" height="64" />
+        <h1>FINN</h1>
+        <p>This deployment is private. Enter the access code to continue.</p>
+        <label className="sr" htmlFor="code">Access code</label>
+        <input id="code" type="password" autoComplete="current-password" placeholder="Access code" value={code}
+          onChange={(e) => setCode(e.target.value)} autoFocus required aria-invalid={!!error} aria-describedby={error ? 'code-err' : undefined} />
+        {error && <p id="code-err" className="lock-err" role="alert">{error}</p>}
+        <button className="btn" type="submit" disabled={busy || !code.trim()}>{busy ? 'Checking…' : 'Unlock FINN'}</button>
+      </form>
+    </main>
+  );
+}
+
+// Asks the server whether a code is needed before anything else loads, and drops back to the
+// lock screen whenever an API call is refused.
 export default function App() {
+  const [gate, setGate] = useState('checking'); // checking | locked | open
+  useEffect(() => {
+    api.access().then((a) => setGate(a.required && !a.ok ? 'locked' : 'open')).catch(() => setGate('open'));
+    const lock = () => { accessCode.set(''); setGate('locked'); };
+    window.addEventListener('finn-locked', lock);
+    return () => window.removeEventListener('finn-locked', lock);
+  }, []);
+  if (gate === 'checking') return <div className="shell"><main className="screen"><div className="skeleton-stack"><i /><i /><i /></div></main></div>;
+  if (gate === 'locked') return <Lock onOpen={() => setGate('open')} />;
+  return <Finn />;
+}
+
+function Finn() {
   const [route, setRoute] = useState(parseHash);
   const meta = useAsync(api.meta, []);
   const [portfolio, setPortfolio] = useLocal('finn.portfolio', null);

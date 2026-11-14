@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'node:path';
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -66,6 +67,50 @@ const apiLimit = limiter('API', 300, 60_000);
 const modelLimit = limiter('model', Number(process.env.MODEL_RATE_LIMIT || 30), 10 * 60_000);
 app.use('/api', apiLimit);
 
+// ---------- access code ----------
+// A shared code in ACCESS_CODE keeps a public deployment private until real sign-in exists.
+// Unset (local development) means open. Every /api route below this block requires the code
+// in the X-Finn-Code header; static files carry no data and stay public so the lock screen can load.
+// Replace codeOk with a session check when the login page lands.
+const ACCESS_CODE = process.env.ACCESS_CODE || '';
+const hashOf = (v) => crypto.createHash('sha256').update(String(v)).digest();
+const codeOk = (c) => !ACCESS_CODE || crypto.timingSafeEqual(hashOf(c), hashOf(ACCESS_CODE));
+if (!ACCESS_CODE) console.warn('[access] ACCESS_CODE is not set: the API is open to anyone who can reach it.');
+else if (ACCESS_CODE.length < 12) console.warn('[access] ACCESS_CODE is shorter than 12 characters; use a longer one.');
+
+// Wrong codes are what a guesser produces, so only failures are counted: 10 per IP per 15 minutes.
+const FAIL_MAX = 10, FAIL_WINDOW = 15 * 60_000;
+const failures = new Map();
+setInterval(() => { const now = Date.now(); for (const [k, v] of failures) if (v.reset < now) failures.delete(k); }, FAIL_WINDOW).unref();
+const blocked = (ip) => { const f = failures.get(ip); return f && f.reset > Date.now() && f.n >= FAIL_MAX ? f : null; };
+const fail = (ip) => {
+  const now = Date.now();
+  let f = failures.get(ip);
+  if (!f || f.reset < now) { f = { n: 0, reset: now + FAIL_WINDOW }; failures.set(ip, f); }
+  f.n++;
+};
+const tooMany = (res, f) => {
+  res.set('Retry-After', String(Math.ceil((f.reset - Date.now()) / 1000)));
+  return res.status(429).json({ error: 'Too many wrong codes. Try again later.' });
+};
+
+app.get('/api/access', (req, res) => res.json({ required: !!ACCESS_CODE, ok: codeOk(req.get('x-finn-code') || '') }));
+app.post('/api/unlock', (req, res) => {
+  const f = blocked(req.ip);
+  if (f) return tooMany(res, f);
+  if (codeOk(String(req.body?.code || '').slice(0, 200))) return res.json({ ok: true });
+  fail(req.ip);
+  res.status(401).json({ error: 'That code is not right.' });
+});
+app.use('/api', (req, res, next) => {
+  if (!ACCESS_CODE) return next();
+  const f = blocked(req.ip);
+  if (f) return tooMany(res, f);
+  if (codeOk(req.get('x-finn-code') || '')) return next();
+  fail(req.ip);
+  res.status(401).json({ error: 'Access code required.' });
+});
+
 const TICKER = /^[A-Z0-9&-]{1,20}$/;
 const tickersOf = (req) => String(req.query.tickers || PORTFOLIO.join(','))
   .split(',').map((t) => t.trim().toUpperCase()).filter((t) => TICKER.test(t)).slice(0, 30);
@@ -86,7 +131,7 @@ const wrap = (fn) => (req, res) => fn(req, res).catch((e) => {
 
 app.get('/api/meta', wrap(async (_req, res) => res.json({
   portfolio: PORTFOLIO, picks: RESEARCH_PICKS, categories: CATEGORY_LABEL,
-  llm: llmInfo(), store: storeMode, feed: feedState,
+  llm: llmInfo(), store: storeMode, feed: feedState, access: !!ACCESS_CODE,
 })));
 
 app.get('/api/digest', wrap(async (req, res) => {

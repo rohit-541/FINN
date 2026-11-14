@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { DEFAULT_RULES, num } from './lib.js';
+import { DEFAULT_RULES, num, accessCode } from './lib.js';
 import { Search } from './Research.jsx';
 
 const STATES = [['auto', 'FINN decides'], ['always', 'Always alert'], ['mute', 'Mute']];
@@ -132,6 +132,9 @@ export default function Rules({ meta, portfolio, setPortfolio, rules, setRules, 
             </div>
           </details>
         </div>
+        {meta?.access && (
+          <button className="link small" onClick={() => { accessCode.set(''); window.location.reload(); }}>Lock FINN on this device</button>
+        )}
       </section>
     </>
   );
