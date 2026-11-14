@@ -9,7 +9,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 try { process.loadEnvFile(path.join(here, '../.env')); } catch { /* no .env is fine */ }
 
 const { initStore, storeMode } = await import('./store.js');
-const { digest, market, enrich, loadCompanies } = await import('./push.js');
+const { digest, market, enrichById, loadCompanies } = await import('./push.js');
 const { facts, analysis, ask } = await import('./research.js');
 const { search } = await import('./sources/screener.js');
 const { pollNse, feedState } = await import('./sources/nse.js');
@@ -144,12 +144,16 @@ app.get('/api/digest', wrap(async (req, res) => {
 app.get('/api/market', wrap(async (req, res) => res.json(await market(tickersOf(req)))));
 
 app.post('/api/enrich', (req, res, next) => (req.body?.read ? modelLimit(req, res, next) : next()), wrap(async (req, res) => {
-  const { item, read } = req.body || {};
-  if (typeof item?.id !== 'string' || !TICKER.test(String(item?.ticker || '').toUpperCase())
-    || !/^https:\/\/([a-z0-9-]+\.)*(nseindia|bseindia)\.com\//.test(item.url || '')) {
-    return res.status(400).json({ error: 'bad item' });
+  // Only the id and ticker are read from the client; the filing itself comes from the store.
+  const id = req.body?.id;
+  const ticker = String(req.body?.ticker || '').toUpperCase();
+  if (typeof id !== 'string' || !id || id.length > 200 || !TICKER.test(ticker)) return res.status(400).json({ error: 'bad item' });
+  try {
+    res.json(await enrichById(id, ticker, { read: !!req.body.read }));
+  } catch (e) {
+    if (e.status === 404) return res.status(404).json({ error: e.message });
+    throw e;
   }
-  res.json(await enrich(item, { read: !!read }));
 }));
 
 app.get('/api/search', wrap(async (req, res) => {

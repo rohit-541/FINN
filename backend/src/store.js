@@ -117,6 +117,13 @@ export async function upsertFilings(list) {
   }
 }
 
+/** One stored filing by id, or null. */
+export async function getFiling(id) {
+  if (typeof id !== 'string' || id.length > 200) return null;
+  if (db) return db.collection('filings').findOne({ _id: id });
+  return filings.get(id) || null;
+}
+
 /** Filings in [from, to] that belong to any of the given companies ({ticker, nameNorm}). */
 export async function findFilings({ companies, from, to }) {
   const tickers = companies.flatMap((c) => [c.ticker, c.nse]).filter(Boolean);

@@ -26,7 +26,7 @@ export const api = {
   meta: () => call('/api/meta'),
   digest: (tickers, from, to) => call(`/api/digest?tickers=${tickers.join(',')}&from=${from}&to=${to}`),
   market: (tickers) => call(`/api/market?tickers=${tickers.join(',')}`),
-  enrich: (item, read = false) => post('/api/enrich', { item, read }),
+  enrich: (item, read = false) => post('/api/enrich', { id: item.id, ticker: item.ticker, read }),
   search: (q) => call(`/api/search?q=${encodeURIComponent(q)}`),
   facts: (t) => call(`/api/research/${encodeURIComponent(t)}`),
   analysis: (t) => call(`/api/research/${encodeURIComponent(t)}/analysis`),

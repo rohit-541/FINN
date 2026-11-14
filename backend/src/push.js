@@ -4,7 +4,7 @@ import { company } from './sources/screener.js';
 import { quote } from './sources/prices.js';
 import { pollNse, backfill, feedState } from './sources/nse.js';
 import { mapLimit } from './sources/http.js';
-import { findFilings } from './store.js';
+import { findFilings, getFiling } from './store.js';
 import { classify, headline, CATEGORY_LABEL } from './classify.js';
 import { pages } from './docs.js';
 import { llmJson, llmInfo } from './llm.js';
@@ -131,6 +131,22 @@ async function brief(f) {
     user: `Filing: ${f.title}\n${f.summary}\n\n${text}\n\nReturn {"what":"what happened, 22 words at most, with the key figure","why":"why a shareholder would care, 22 words at most, or '' if it changes nothing","numbers":[{"label":"","value":""}]} with at most 3 numbers taken verbatim from the filing.`,
     maxTokens: 400,
   });
+}
+
+/**
+ * Enrich a filing the client names by id. Nothing else the client sends is trusted: the filing
+ * is loaded from the server's own store and must belong to the named company, so a caller cannot
+ * pair one company with another's filing or put its own text in front of the model. An unknown id
+ * and a filing of another company get the same answer, so ids cannot be probed.
+ */
+export async function enrichById(id, ticker, opts) {
+  const notFound = () => Object.assign(new Error('filing not found'), { status: 404 });
+  const f = await getFiling(id);
+  if (!f) throw notFound();
+  const [c] = await loadCompanies([ticker]);
+  if (!c || !(c.ticker === f.ticker || (c.nse && c.nse === f.ticker) || c.nameNorm === f.nameNorm)) throw notFound();
+  const item = { id: f._id, ticker: c.ticker, company: c.name, title: f.title, summary: f.summary, url: f.url, ts: f.ts, ...classify(f) };
+  return enrich(item, opts);
 }
 
 export async function enrich(item, { read = false } = {}) {
