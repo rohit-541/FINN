@@ -147,3 +147,14 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# FINN
+# Local cache and filings history (JSON fallback when MONGODB_URI is unset)
+backend/data/
+# Design tooling scratch output
+.taste-skill/
+# macOS
+.DS_Store
+# Unrelated files kept in this folder
+.cph/
+Coloring_Dominoes.cpp
