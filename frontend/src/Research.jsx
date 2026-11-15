@@ -7,7 +7,7 @@ const VERDICT = { delivered: 'Delivered', partly: 'Partly', missed: 'Missed', to
 const lastOf = (s, back = 0) => s?.filter((p) => p.v != null).at(-1 - back);
 const tail = (s, n = 10) => (s || []).filter((p) => p.v != null).slice(-n);
 
-export function Search({ onPick, placeholder = 'Search any NSE company', autoFocus }) {
+export function Search({ onPick, placeholder = 'Search any NSE or BSE company', autoFocus }) {
   const [q, setQ] = useState('');
   const [rows, setRows] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -34,7 +34,12 @@ export function Search({ onPick, placeholder = 'Search any NSE company', autoFoc
             </button>
           ))}
           {!busy && failed && <p className="fine" role="alert">Search is unavailable right now. Try again in a moment.</p>}
-          {!busy && !failed && rows.length === 0 && <p className="fine">No company matches "{q}".</p>}
+          {!busy && !failed && rows.length === 0 && (
+            <p className="fine">
+              No Indian-listed company matches "{q}". FINN covers companies listed on NSE and BSE;
+              companies listed abroad, such as Google or Apple, are not on these exchanges.
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -309,7 +314,7 @@ export default function Research({ ticker, meta, portfolio, go }) {
     <>
       <header className="top"><span className="title">Research</span><span className="pill">Filings only</span></header>
       <section className="lede">
-        <h1>Research any NSE company.</h1>
+        <h1>Research any NSE or BSE company.</h1>
         <p>FINN reads the company's own filings, then checks what management said against what the numbers did.</p>
         <Search onPick={(t) => go('research', t)} />
       </section>

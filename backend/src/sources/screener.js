@@ -92,11 +92,15 @@ export function company(ticker) {
 }
 
 export function search(q) {
-  return cached(`search:${q.toLowerCase()}`, 24 * 3600 * 1000, async () => {
+  // v2 key: earlier cached results could hold companies without an exchange symbol.
+  return cached(`search2:${q.toLowerCase()}`, 24 * 3600 * 1000, async () => {
     const rows = await get(`${BASE}/api/company/search/?q=${encodeURIComponent(q)}`, { as: 'json' });
     return rows
+      // Listed companies link as /company/<NSE symbol or BSE code>/. Those without a symbol
+      // (delisted or unlisted) link as /company/id/<number>/ and have no page FINN can read.
+      .filter((r) => !/^\/company\/id\//.test(r.url || ''))
       .map((r) => ({ name: r.name, ticker: r.url?.match(/\/company\/([^/]+)\//)?.[1] }))
-      .filter((r) => r.ticker)
+      .filter((r) => r.ticker && /^[A-Z0-9&-]{1,20}$/i.test(r.ticker))
       .slice(0, 8);
   });
 }
