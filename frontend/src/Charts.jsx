@@ -37,6 +37,17 @@ export function Chart({ series, kind = 'bar', fmt = (v) => v, label }) {
     const k = Math.floor((((e.clientX - r.left) / r.width) * W - PAD) / slot);
     setActive(Math.max(0, Math.min(n - 1, k)));
   };
+  // Touch: a tap selects a period and the selection stays (a touch fires pointerleave right after
+  // pointerup, which used to wipe it). Capturing the pointer keeps a horizontal drag scrubbing even
+  // when the finger slides off the chart; touch-action: pan-y in CSS leaves vertical scrolling alone.
+  const down = (e) => { if (e.pointerType !== 'mouse') e.currentTarget.setPointerCapture?.(e.pointerId); scrub(e); };
+  const leave = (e) => { if (e.pointerType === 'mouse') setActive(null); };
+  const key = (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      setActive((a) => Math.max(0, Math.min(n - 1, (a ?? n - 1) + (e.key === 'ArrowRight' ? 1 : -1))));
+    } else if (e.key === 'Escape') setActive(null);
+  };
   const bar = (v, cx) => {
     const y0 = y(0), y1 = y(v), top = Math.min(y0, y1), h = Math.max(Math.abs(y1 - y0), 1), r = Math.min(3, h, bw / 2);
     const x0 = cx - bw / 2;
@@ -59,8 +70,9 @@ export function Chart({ series, kind = 'bar', fmt = (v) => v, label }) {
           ))}
         </span>
       </figcaption>
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${label || series[0].name} by period, latest ${fmt(series[0].data.at(-1)?.v)}`}
-        onPointerMove={scrub} onPointerDown={scrub} onPointerLeave={() => setActive(null)}>
+      <svg className="chart-plot" viewBox={`0 0 ${W} ${H}`} role="img" tabIndex={0}
+        aria-label={`${label || series[0].name} by period, latest ${fmt(series[0].data.at(-1)?.v)}. Use the left and right arrow keys to read other periods.`}
+        onPointerMove={scrub} onPointerDown={down} onPointerLeave={leave} onKeyDown={key}>
         <line className="axis" x1={PAD} x2={W - PAD} y1={kind === 'bar' ? y(0) : H - BOTTOM} y2={kind === 'bar' ? y(0) : H - BOTTOM} />
         {kind === 'bar' && series.map((s, si) => s.data.map((p, k) => p.v != null && (
           <path key={`${si}-${k}`} d={bar(p.v, x(k) + (si - (series.length - 1) / 2) * (bw + 2))} fill={s.color} opacity={k === i ? 1 : 0.5} />
