@@ -45,7 +45,8 @@ It is built to be cheap to run. Rules do the sorting, models are called only whe
 | De-duplication | The same event filed on both exchanges, with its advert and deck, shows as a single item. |
 | Results first cut | Revenue, EBITDA, PBT and PAT against the previous quarter (QoQ) and the same quarter last year (YoY), with margin change. Lenders show *Financing profit* in place of EBITDA. |
 | Management changes | Who, which post and the effective date, plus background from the profile inside the filing and a LinkedIn lookup. |
-| Holdings | Average move of the portfolio, up/down breadth and the biggest movers, each with a 30-day sparkline. |
+| Holdings | Average move of the portfolio, up/down breadth and the biggest movers, each with a 30-day sparkline and the company's logo (a tinted lettered badge where no clear logo exists). |
+| Splash screen | The FINN mark shows from the first paint and lifts once the Brief has its filings and prices, so the home screen opens complete, never as loading placeholders. |
 | Moves | Holdings that broke the investor's own price or volume thresholds at the last close. |
 | Read it for me | A three-line model summary of any filing, with figures quoted verbatim. |
 | Alerts | Browser notifications for new material filings, plus per-category overrides (always alert, or mute). |
@@ -635,7 +636,7 @@ Audited on 15 November 2026 against a 20-point launch checklist for usability, a
 | 17 | Clickable logo | N/A | No logo in the app chrome; the first dock button is home. The 404 page links home. |
 | 18 | Clickable phone number | N/A | No phone number is shown. |
 | 19 | Clickable email | N/A | No email address is shown. |
-| 20 | Every page mobile-optimised | Fixed | 52 tap targets were 36 to 40 px (chips, jump links, small buttons) and are now at least 44 px. Layout is mobile-first with `dvh` units. |
+| 20 | Every page mobile-optimised | Fixed | 52 tap targets were 36 to 40 px (chips, jump links, small buttons) and are now at least 44 px. Layout is mobile-first with `dvh` units. Charts scrub by touch (tap or horizontal drag) as well as by pointer. |
 
 ### Core Web Vitals
 
@@ -654,7 +655,7 @@ Lighthouse 13.6 (mobile, simulated slow 4G) on production, before and after the 
 | Lighthouse category (Brief) | Before | After |
 |---|---|---|
 | Performance | 99 | 99 to 100 |
-| Accessibility | 95 | 100 |
+| Accessibility | 95 | 93 (100 before the zoom lock) |
 | Best practices | 96 | 100 |
 | SEO | 100 | 100 |
 
@@ -668,6 +669,7 @@ What changed:
 
 Remaining notes:
 
+- **Zoom is locked by design.** Pinch and double-tap zoom are disabled so the app behaves like a native one: `maximum-scale=1, user-scalable=no`, with the iOS pinch gesture cancelled. Lighthouse counts this as an accessibility failure (WCAG 1.4.4, resize text), which is the whole drop from 100 to 93. Removing those two viewport values restores 100.
 - **Cold starts.** The first request to a new deployment includes the function's start and the MongoDB connection, and showed a 4 to 5 s Speed Index once. Warm runs are 2 to 3 s.
 - **Speed Index on the Brief.** It follows the filings API, which polls the NSE feed live (at most every four minutes per instance) and backfills each holding.
 
