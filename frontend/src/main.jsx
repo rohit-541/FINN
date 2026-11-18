@@ -3,6 +3,25 @@ import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
 import './styles.css';
 
+// Splash: the app calls window.finnReady() once the first screen has its data. The splash stays
+// at least 450 ms so it never flickers, and leaves after 9 s whatever happens.
+const splash = document.getElementById('splash');
+const shownAt = performance.now();
+let splashGone = false;
+window.finnReady = () => {
+  if (splashGone || !splash) return;
+  splashGone = true;
+  setTimeout(() => {
+    splash.classList.add('out');
+    setTimeout(() => splash.remove(), 420);
+  }, Math.max(0, 450 - (performance.now() - shownAt)));
+};
+setTimeout(() => window.finnReady(), 9000);
+
+// Zoom lock. The viewport meta stops pinch and double-tap zoom on Android; iOS Safari ignores
+// user-scalable, so its pinch gesture is cancelled here (double-tap is handled by touch-action in CSS).
+document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+
 createRoot(document.getElementById('root')).render(<StrictMode><App /></StrictMode>);
 
 // Installable app: the service worker is only registered on a built site, so it never

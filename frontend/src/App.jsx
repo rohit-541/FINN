@@ -96,6 +96,7 @@ export default function App() {
     window.addEventListener('finn-locked', lock);
     return () => window.removeEventListener('finn-locked', lock);
   }, []);
+  useEffect(() => { if (gate === 'locked') window.finnReady?.(); }, [gate]);
   if (gate === 'checking') return <div className="shell"><main className="screen"><div className="skeleton-stack"><i /><i /><i /></div></main></div>;
   if (gate === 'locked') return <Lock onOpen={() => setGate('open')} />;
   return <Finn />;
@@ -114,6 +115,8 @@ function Finn() {
   }, []);
 
   useEffect(() => { document.title = titleOf(route); }, [route]);
+  // The Brief lifts the splash itself once its data is in; any other first screen lifts it at once.
+  useEffect(() => { if (route.tab !== 'brief' || meta.error) window.finnReady?.(); }, [route.tab, meta.error]);
 
   const go = (tab, arg) => { window.location.hash = `#/${tab}${arg ? `/${encodeURIComponent(arg)}` : ''}`; };
   const holdings = portfolio || meta.data?.portfolio;
