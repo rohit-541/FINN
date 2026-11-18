@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, useAsync, cr, num, pct, dir, price, fy, safeUrl } from './lib.js';
+import Logo from './Logo.jsx';
 import { Chart, S1, S2 } from './Charts.jsx';
 
 const QUESTIONS = ['What did management guide for margins?', 'What is the capex plan?', 'What did analysts press on in the last call?'];
@@ -170,7 +171,7 @@ function Company({ ticker, go }) {
     <>
       <header className="co-head">
         <a className="back" href="#/research">Research</a>
-        <h1>{f.name}</h1>
+        <div className="co-title"><Logo ticker={f.ticker} size={48} /><h1>{f.name}</h1></div>
         <div className="co-line">
           <span className="ticker">{f.ticker}</span>
           {px && <><span className="mono">{price(px.close)}</span><span className={`delta ${dir(px.changePct)}`}>{pct(px.changePct)}</span></>}

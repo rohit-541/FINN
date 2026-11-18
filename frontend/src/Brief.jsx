@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, useAsync, useLocal, ago, num, pct, dir, price, tierOf, moveOf, safeUrl, toast } from './lib.js';
 import { Spark } from './Charts.jsx';
+import Logo from './Logo.jsx';
 
 const DAY = 864e5;
 const WINDOWS = [
@@ -155,7 +156,7 @@ function Pulse({ quotes, go, open, onToggle }) {
       <div className="hold-list">
         {list.map((q) => (
           <button key={q.ticker} className="line" onClick={() => go('research', q.ticker)}>
-            <span><b>{q.ticker}</b><small>{price(q.close)}{q.volumeRatio >= 1.5 ? ` · ${q.volumeRatio.toFixed(1)}× volume` : ''}</small></span>
+            <span className="line-id"><Logo ticker={q.ticker} /><span><b>{q.ticker}</b><small>{price(q.close)}{q.volumeRatio >= 1.5 ? ` · ${q.volumeRatio.toFixed(1)}× volume` : ''}</small></span></span>
             <span className="line-side"><Spark values={q.spark} /><Delta v={q.changePct} digits={2} /></span>
           </button>
         ))}
@@ -186,6 +187,10 @@ export default function Brief({ portfolio, rules, go }) {
   const mkt = useAsync(() => api.market(portfolio), [key], { refreshMs: 600000 });
 
   const d = digest.data;
+  // Lift the splash only when the home screen can render whole: filings and prices both settled.
+  useEffect(() => {
+    if ((d || digest.error) && (mkt.data || mkt.error)) window.finnReady?.();
+  }, [d, digest.error, mkt.data, mkt.error]);
   const { material, glance, routine } = useMemo(() => {
     const out = { material: [], glance: [], routine: [] };
     for (const it of d?.items || []) {
@@ -257,8 +262,8 @@ export default function Brief({ portfolio, rules, go }) {
             <h2 className={top ? undefined : 'clear-title'}>{top ? short(top.headline) : 'All clear'}</h2>
             {top && (
               <span className="stack" aria-label={`${material.length} material filings`}>
-                <button className="ava" onClick={() => go('research', top.ticker)} aria-label={`Research ${top.ticker}`}>{top.ticker[0]}</button>
-                {others.slice(0, 1).map((t) => <span key={t} className="ava b">{t[0]}</span>)}
+                <button className="ava" onClick={() => go('research', top.ticker)} aria-label={`Research ${top.ticker}`}><Logo ticker={top.ticker} size={30} round /></button>
+                {others.slice(0, 1).map((t) => <span key={t} className="ava"><Logo ticker={t} size={30} round /></span>)}
                 {others.length > 1 && <span className="ava more">+{others.length - 1}</span>}
               </span>
             )}
@@ -301,7 +306,7 @@ export default function Brief({ portfolio, rules, go }) {
               {moves.length === 0 && <p className="quiet">No holding moved past ±{rules.price}% or {rules.volume}× volume. <a className="link" href="#/rules">Change</a></p>}
               {moves.map(({ q, m }) => (
                 <button key={q.ticker} className="line" onClick={() => go('research', q.ticker)}>
-                  <span><b>{q.ticker}</b><small className={dir(q.changePct)}>{m.text}</small></span>
+                  <span className="line-id"><Logo ticker={q.ticker} /><span><b>{q.ticker}</b><small className={dir(q.changePct)}>{m.text}</small></span></span>
                   <span className="line-side"><Spark values={q.spark} /><small>{price(q.close)}</small></span>
                 </button>
               ))}
